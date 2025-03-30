@@ -103,6 +103,11 @@ export function useTeams() {
     try {
       const supabase = await createClient()
       
+      // Garantir que created_by está presente nos dados
+      if (!data.created_by) {
+        throw new Error("ID do funcionário é obrigatório para criar uma equipe")
+      }
+      
       const { data: teamData, error } = await supabase
         .from("teams")
         .insert([data])
@@ -117,7 +122,15 @@ export function useTeams() {
         title: "Sucesso",
         description: "Equipe criada com sucesso",
       })
+      
+      // Forçar atualização do cache do Next.js
       router.refresh()
+      
+      // Primeiro atualizar o cache, depois navegar
+      setTimeout(() => {
+        router.push("/dashboard/teams")
+      }, 100)
+      
       return teamData
     } catch (error) {
       console.error("[CREATE_TEAM_ERROR]", error)

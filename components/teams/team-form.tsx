@@ -40,6 +40,7 @@ type TeamFormValues = z.infer<typeof teamFormSchema>
 
 interface TeamFormProps {
   companyId: string
+  employeeId: string
   initialData?: TeamFormValues & { id?: string }
   employees?: { id: string; full_name: string; position?: string }[]
   isEditing?: boolean
@@ -50,7 +51,7 @@ interface TeamFormProps {
  * @param props Propriedades do componente
  * @returns Componente de formulário
  */
-export function TeamForm({ companyId, initialData, employees = [], isEditing = false }: TeamFormProps) {
+export function TeamForm({ companyId, employeeId, initialData, employees = [], isEditing = false }: TeamFormProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { createTeam, updateTeam } = useTeams()
@@ -87,8 +88,11 @@ export function TeamForm({ companyId, initialData, employees = [], isEditing = f
         toast.success("Equipe atualizada com sucesso!")
         router.refresh()
       } else {
-        // Cria uma nova equipe
-        await createTeam(data)
+        // Cria uma nova equipe com o created_by preenchido
+        await createTeam({
+          ...data,
+          created_by: employeeId
+        })
         toast.success("Equipe criada com sucesso!")
         router.push("/dashboard/teams")
       }

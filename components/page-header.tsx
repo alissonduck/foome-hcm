@@ -12,6 +12,7 @@ export interface PageHeaderProps {
   title: string
   description?: string
   backButton?: boolean
+  actions?: React.ReactNode
 }
 
 /**
@@ -19,7 +20,7 @@ export interface PageHeaderProps {
  * @param props Propriedades do componente
  * @returns Componente de cabeçalho
  */
-export function PageHeader({ title, description, backButton }: PageHeaderProps) {
+export function PageHeader({ title, description, backButton, actions }: PageHeaderProps) {
   const router = useRouter()
 
   return (
@@ -41,6 +42,11 @@ export function PageHeader({ title, description, backButton }: PageHeaderProps) 
           <p className="text-muted-foreground">{description}</p>
         )}
       </div>
+      {actions && (
+        <div className="flex items-center space-x-2">
+          {actions}
+        </div>
+      )}
     </div>
   )
 }

@@ -8,7 +8,6 @@ import { notFound, redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { TeamDetails } from "@/components/teams/team-details"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Breadcrumbs } from "@/components/breadcrumbs"
 
 interface TeamPageProps {
   params: Promise<{
@@ -109,7 +108,6 @@ export default async function TeamPage(props: TeamPageProps) {
 
   return (
     <div className="space-y-6">
-      <Breadcrumbs />
       <Suspense fallback={<TeamDetailsSkeleton />}>
         <TeamDetails teamId={params.id} initialTeam={teamWithDetails} employees={employees || []} />
       </Suspense>

@@ -62,6 +62,7 @@ export default async function NewTeamPage() {
         <CardContent>
           <TeamForm 
             companyId={employee.company_id} 
+            employeeId={employee.id}
             employees={employees || []} 
           />
         </CardContent>
