@@ -3,6 +3,7 @@
  */
 import { createClient } from "@/lib/supabase/server"
 import EmployeeList from "@/components/employees/employee-list"
+import { getCurrentCompany } from "@/lib/auth-utils-server"
 
 /**
  * Página de listagem de funcionários
@@ -10,24 +11,19 @@ import EmployeeList from "@/components/employees/employee-list"
  */
 export default async function EmployeesPage() {
   const supabase = await createClient()
-
-  // Busca os dados do funcionário
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  // Busca os dados do funcionário
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("company_id, is_admin")
-    .eq("user_id", session?.user.id)
-    .single()
+  
+  // Obter a empresa atual
+  const company = await getCurrentCompany()
+  
+  if (!company) {
+    return <div className="p-8 text-center">Empresa não encontrada ou usuário não autenticado</div>
+  }
 
   // Busca todos os funcionários da empresa
   const { data: employees } = await supabase
     .from("employees")
     .select("*")
-    .eq("company_id", employee?.company_id)
+    .eq("company_id", company.id)
     .order("full_name")
 
   return (
@@ -37,7 +33,7 @@ export default async function EmployeesPage() {
         <p className="text-muted-foreground">Gerencie os funcionários da sua empresa</p>
       </div>
 
-      <EmployeeList employees={employees || []} isAdmin={employee?.is_admin || false} />
+      <EmployeeList employees={employees || []} isAdmin={company.isAdmin || false} />
     </div>
   )
 }
