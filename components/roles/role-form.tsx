@@ -32,18 +32,22 @@ import {
   EDUCATION_STATUSES,
   SKILL_LEVELS,
 } from "@/lib/types/roles"
+import { type TeamWithManager } from "@/lib/types/teams"
 
 interface RoleFormProps {
   companyId: string
-  initialData?: RoleFormValues
+  initialData?: RoleFormValues & { id?: string }
   isEditing?: boolean
 }
 
 export function RoleForm({ companyId, initialData, isEditing = false }: RoleFormProps) {
   const router = useRouter()
-  const { createRole, updateRole, isCreatingRole, isUpdatingRole } = useRoles()
-  const { useTeamsQuery } = useTeams()
-  const { data: teams, isLoading: isLoadingTeams } = useTeamsQuery(companyId)
+  const { useCreateRoleMutation, useUpdateRoleMutation } = useRoles()
+  const createMutation = useCreateRoleMutation()
+  const updateMutation = useUpdateRoleMutation()
+  const isCreatingRole = createMutation.isPending
+  const isUpdatingRole = updateMutation.isPending
+  const teams = useTeams().teams
 
   const [courses, setCourses] = useState<{ id?: string; name: string; is_required: boolean }[]>(
     initialData?.courses || [],
@@ -52,14 +56,23 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
     initialData?.complementary_courses || [],
   )
   const [technicalSkills, setTechnicalSkills] = useState<{ id?: string; name: string; level: string | null }[]>(
-    initialData?.technical_skills || [],
+    initialData?.technical_skills?.map(skill => ({
+      ...skill,
+      level: skill.level || null
+    })) || [],
   )
   const [behavioralSkills, setBehavioralSkills] = useState<{ id?: string; name: string; level: string | null }[]>(
-    initialData?.behavioral_skills || [],
+    initialData?.behavioral_skills?.map(skill => ({
+      ...skill,
+      level: skill.level || null
+    })) || [],
   )
   const [languages, setLanguages] = useState<
     { id?: string; name: string; level: string | null; is_required: boolean }[]
-  >(initialData?.languages || [])
+  >(initialData?.languages?.map(lang => ({
+    ...lang,
+    level: lang.level || null
+  })) || [])
 
   const [newCourse, setNewCourse] = useState("")
   const [newComplementaryCourse, setNewComplementaryCourse] = useState("")
@@ -107,9 +120,18 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
     if (initialData) {
       setCourses(initialData.courses || [])
       setComplementaryCourses(initialData.complementary_courses || [])
-      setTechnicalSkills(initialData.technical_skills || [])
-      setBehavioralSkills(initialData.behavioral_skills || [])
-      setLanguages(initialData.languages || [])
+      setTechnicalSkills(initialData.technical_skills?.map(skill => ({
+        ...skill,
+        level: skill.level || null
+      })) || [])
+      setBehavioralSkills(initialData.behavioral_skills?.map(skill => ({
+        ...skill,
+        level: skill.level || null
+      })) || [])
+      setLanguages(initialData.languages?.map(lang => ({
+        ...lang,
+        level: lang.level || null
+      })) || [])
     }
   }, [initialData])
 
@@ -124,9 +146,9 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
     }
 
     if (isEditing && initialData?.id) {
-      updateRole({ roleId: initialData.id, roleForm: formData })
+      updateMutation.mutate({ roleId: initialData.id, params: formData })
     } else {
-      createRole(formData)
+      createMutation.mutate(formData)
     }
   }
 
@@ -306,7 +328,7 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="none">Nenhuma equipe</SelectItem>
-                        {teams?.map((team) => (
+                        {teams?.map((team: TeamWithManager) => (
                           <SelectItem key={team.id} value={team.id}>
                             {team.name}
                           </SelectItem>

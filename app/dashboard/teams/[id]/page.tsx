@@ -5,7 +5,7 @@
 
 import { Suspense } from "react"
 import { notFound, redirect } from "next/navigation"
-import { supabaseServer } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { TeamDetails } from "@/components/teams/team-details"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Breadcrumbs } from "@/components/breadcrumbs"
@@ -19,7 +19,7 @@ interface TeamPageProps {
 export async function generateMetadata(props: TeamPageProps) {
   const params = await props.params;
   // Busca a equipe para o título da página
-  const { data: team } = await supabaseServer().from("teams").select("name").eq("id", params.id).single()
+  const { data: team } = await (await createClient()).from("teams").select("name").eq("id", params.id).single()
 
   return {
     title: team ? `${team.name} | Equipes | Foome` : "Equipe | Foome",
@@ -32,13 +32,13 @@ export default async function TeamPage(props: TeamPageProps) {
   // Verifica se o usuário está autenticado
   const {
     data: { session },
-  } = await supabaseServer().auth.getSession()
+  } = await (await createClient()).auth.getSession()
   if (!session) {
     redirect("/login")
   }
 
   // Busca a equipe com o gestor
-  const { data: team, error: teamError } = await supabaseServer()
+  const { data: team, error: teamError } = await (await createClient())
     .from("teams")
     .select(`
       *,
@@ -54,7 +54,7 @@ export default async function TeamPage(props: TeamPageProps) {
   }
 
   // Busca os membros da equipe
-  const { data: members, error: membersError } = await supabaseServer()
+  const { data: members, error: membersError } = await (await createClient())
     .from("team_members")
     .select(`
       *,
@@ -69,7 +69,7 @@ export default async function TeamPage(props: TeamPageProps) {
   }
 
   // Busca as subequipes
-  const { data: subteams, error: subteamsError } = await supabaseServer()
+  const { data: subteams, error: subteamsError } = await (await createClient())
     .from("subteams")
     .select(`
       *,
@@ -93,7 +93,7 @@ export default async function TeamPage(props: TeamPageProps) {
   }))
 
   // Busca os funcionários da empresa para o seletor de gestor
-  const { data: employees } = await supabaseServer()
+  const { data: employees } = await (await createClient())
     .from("employees")
     .select("id, full_name, position")
     .eq("company_id", team.company_id)
