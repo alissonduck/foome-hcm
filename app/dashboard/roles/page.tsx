@@ -6,8 +6,8 @@ import { Suspense } from "react"
 import type { Metadata } from "next"
 import { RoleList } from "@/components/roles/role-list"
 import { PageHeader } from "@/components/page-header"
-import { getCurrentCompany } from "@/lib/auth-utils"
-import { RoleService } from "@/lib/services/role-service"
+import { getCurrentCompany } from "@/lib/auth-utils-server"
+import { roleService } from "@/lib/services/role-service"
 
 export const metadata: Metadata = {
   title: "Cargos | Foome",
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default async function RolesPage() {
   const company = await getCurrentCompany()
-  const roles = await RoleService.getRoles(company.id)
+  const roles = await roleService.getRoles(company.id)
 
   return (
     <div className="space-y-6">

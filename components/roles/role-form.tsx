@@ -47,7 +47,24 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
   const updateMutation = useUpdateRoleMutation()
   const isCreatingRole = createMutation.isPending
   const isUpdatingRole = updateMutation.isPending
-  const teams = useTeams().teams
+  
+  // Obtenção das equipes de forma correta
+  const { loadTeams, teams, loading: teamsLoading } = useTeams()
+  const [teamsLoaded, setTeamsLoaded] = useState(false)
+  
+  // Efeito para carregar as equipes ao montar o componente
+  useEffect(() => {
+    async function loadTeamsData() {
+      if (!teamsLoaded && companyId) {
+        console.log("Carregando equipes para a empresa:", companyId)
+        await loadTeams(companyId)
+        setTeamsLoaded(true)
+        console.log("Equipes carregadas:", teams?.length || 0)
+      }
+    }
+    
+    loadTeamsData()
+  }, [companyId, loadTeams, teamsLoaded, teams])
 
   const [courses, setCourses] = useState<{ id?: string; name: string; is_required: boolean }[]>(
     initialData?.courses || [],
@@ -138,11 +155,22 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
   const onSubmit = (data: RoleFormValues) => {
     const formData = {
       ...data,
+      cnh: data.cnh === "no_cnh" ? null : data.cnh,
+      team_id: data.team_id === "none" ? null : data.team_id,
       courses,
       complementary_courses: complementaryCourses,
-      technical_skills: technicalSkills,
-      behavioral_skills: behavioralSkills,
-      languages,
+      technical_skills: technicalSkills.map(skill => ({
+        ...skill,
+        level: skill.level === "none" ? null : skill.level
+      })),
+      behavioral_skills: behavioralSkills.map(skill => ({
+        ...skill,
+        level: skill.level === "none" ? null : skill.level
+      })),
+      languages: languages.map(lang => ({
+        ...lang,
+        level: lang.level === "none" ? null : lang.level
+      })),
     }
 
     if (isEditing && initialData?.id) {
@@ -177,7 +205,13 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
 
   const handleAddTechnicalSkill = () => {
     if (newTechnicalSkill.trim()) {
-      setTechnicalSkills([...technicalSkills, { name: newTechnicalSkill.trim(), level: newTechnicalSkillLevel }])
+      setTechnicalSkills([
+        ...technicalSkills, 
+        { 
+          name: newTechnicalSkill.trim(), 
+          level: newTechnicalSkillLevel === "none" ? null : newTechnicalSkillLevel 
+        }
+      ])
       setNewTechnicalSkill("")
       setNewTechnicalSkillLevel(null)
     }
@@ -189,7 +223,13 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
 
   const handleAddBehavioralSkill = () => {
     if (newBehavioralSkill.trim()) {
-      setBehavioralSkills([...behavioralSkills, { name: newBehavioralSkill.trim(), level: newBehavioralSkillLevel }])
+      setBehavioralSkills([
+        ...behavioralSkills, 
+        { 
+          name: newBehavioralSkill.trim(), 
+          level: newBehavioralSkillLevel === "none" ? null : newBehavioralSkillLevel 
+        }
+      ])
       setNewBehavioralSkill("")
       setNewBehavioralSkillLevel(null)
     }
@@ -205,7 +245,7 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
         ...languages,
         {
           name: newLanguage.trim(),
-          level: newLanguageLevel,
+          level: newLanguageLevel === "none" ? null : newLanguageLevel,
           is_required: newLanguageRequired,
         },
       ])
@@ -323,18 +363,27 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
                     <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione a equipe" />
+                          <SelectValue placeholder={teamsLoading ? "Carregando equipes..." : "Selecione a equipe"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="none">Nenhuma equipe</SelectItem>
-                        {teams?.map((team: TeamWithManager) => (
-                          <SelectItem key={team.id} value={team.id}>
-                            {team.name}
+                        {teams && teams.length > 0 ? (
+                          teams.map((team: TeamWithManager) => (
+                            <SelectItem key={team.id} value={team.id}>
+                              {team.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no_teams" disabled>
+                            {teamsLoading ? "Carregando equipes..." : "Nenhuma equipe encontrada"}
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
+                    <FormDescription>
+                      Selecione a equipe à qual este cargo pertence
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -438,7 +487,7 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Não requer CNH</SelectItem>
+                        <SelectItem value="no_cnh">Não requer CNH</SelectItem>
                         {CNH_TYPES.map((type) => (
                           <SelectItem key={type} value={type} className="uppercase">
                             {type}
@@ -709,7 +758,7 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
                       <SelectValue placeholder="Nível" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sem nível</SelectItem>
+                      <SelectItem value="none">Sem nível</SelectItem>
                       {SKILL_LEVELS.map((level) => (
                         <SelectItem key={level} value={level} className="capitalize">
                           {level}

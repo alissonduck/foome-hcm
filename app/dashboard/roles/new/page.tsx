@@ -9,7 +9,7 @@ import { ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { RoleForm } from "@/components/roles/role-form"
-import { getCurrentCompany } from "@/lib/auth-utils"
+import { getCurrentCompany } from "@/lib/auth-utils-server"
 
 export const metadata: Metadata = {
   title: "Novo Cargo | Foome",
