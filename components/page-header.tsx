@@ -1,36 +1,46 @@
 /**
  * Componente de cabeçalho de página
- * Exibe o título da página e ações opcionais
+ * Exibe título, descrição e opcionalmente um botão para voltar
  */
-import type { ReactNode } from "react"
-import { cn } from "@/lib/utils"
+"use client"
 
-/**
- * Props para o componente PageHeader
- */
-interface PageHeaderProps {
+import { ArrowLeft } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+
+export interface PageHeaderProps {
   title: string
   description?: string
-  actions?: ReactNode
-  className?: string
+  backButton?: boolean
 }
 
 /**
  * Componente de cabeçalho de página
- * @param title Título da página
- * @param description Descrição da página
- * @param actions Ações a serem exibidas no cabeçalho
- * @param className Classes adicionais
- * @returns Componente de cabeçalho de página
+ * @param props Propriedades do componente
+ * @returns Componente de cabeçalho
  */
-export function PageHeader({ title, description, actions, className }: PageHeaderProps) {
+export function PageHeader({ title, description, backButton }: PageHeaderProps) {
+  const router = useRouter()
+
   return (
-    <div className={cn("mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between", className)}>
-      <div>
+    <div className="flex items-center justify-between">
+      <div className="space-y-1">
+        {backButton && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-2"
+            onClick={() => router.back()}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar
+          </Button>
+        )}
         <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        {description && (
+          <p className="text-muted-foreground">{description}</p>
+        )}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
   )
 }

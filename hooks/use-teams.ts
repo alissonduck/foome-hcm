@@ -20,6 +20,7 @@ import type {
   TeamWithMembers,
   SubteamWithMembers,
 } from "@/lib/types/teams"
+import { createClient } from "@/lib/supabase/client"
 
 export function useTeams() {
   const router = useRouter()
@@ -93,26 +94,39 @@ export function useTeams() {
 
   /**
    * Cria uma nova equipe
-   * @param team Dados da equipe
+   * @param data Dados da equipe a ser criada
+   * @returns Promise com o resultado da operação
    */
-  const createTeam = async (team: TeamInsert) => {
+  const createTeam = async (data: TeamInsert) => {
+    setLoading(true)
+    
     try {
-      setLoading(true)
-      await TeamService.createTeam(team)
+      const supabase = await createClient()
+      
+      const { data: teamData, error } = await supabase
+        .from("teams")
+        .insert([data])
+        .select()
+        .single()
+      
+      if (error) {
+        throw new Error(`Erro ao criar equipe: ${error.message}`)
+      }
+      
       toast({
         title: "Sucesso",
         description: "Equipe criada com sucesso",
       })
       router.refresh()
-      return true
+      return teamData
     } catch (error) {
-      console.error("Erro ao criar equipe:", error)
+      console.error("[CREATE_TEAM_ERROR]", error)
       toast({
         title: "Erro",
         description: "Não foi possível criar a equipe",
         variant: "destructive",
       })
-      return false
+      throw error
     } finally {
       setLoading(false)
     }
@@ -120,13 +134,27 @@ export function useTeams() {
 
   /**
    * Atualiza uma equipe existente
-   * @param id ID da equipe
-   * @param team Dados atualizados da equipe
+   * @param id ID da equipe a ser atualizada
+   * @param data Novos dados da equipe
+   * @returns Promise com o resultado da operação
    */
-  const updateTeam = async (id: string, team: TeamUpdate) => {
+  const updateTeam = async (id: string, data: TeamUpdate) => {
+    setLoading(true)
+    
     try {
-      setLoading(true)
-      await TeamService.updateTeam(id, team)
+      const supabase = await createClient()
+      
+      const { data: teamData, error } = await supabase
+        .from("teams")
+        .update(data)
+        .eq("id", id)
+        .select()
+        .single()
+      
+      if (error) {
+        throw new Error(`Erro ao atualizar equipe: ${error.message}`)
+      }
+      
       toast({
         title: "Sucesso",
         description: "Equipe atualizada com sucesso",
@@ -135,28 +163,40 @@ export function useTeams() {
       if (currentTeam?.id === id) {
         loadTeamDetails(id)
       }
-      return true
+      return teamData
     } catch (error) {
-      console.error("Erro ao atualizar equipe:", error)
+      console.error("[UPDATE_TEAM_ERROR]", error)
       toast({
         title: "Erro",
         description: "Não foi possível atualizar a equipe",
         variant: "destructive",
       })
-      return false
+      throw error
     } finally {
       setLoading(false)
     }
   }
 
   /**
-   * Exclui uma equipe
-   * @param id ID da equipe
+   * Remove uma equipe
+   * @param id ID da equipe a ser removida
+   * @returns Promise com o resultado da operação
    */
   const deleteTeam = async (id: string) => {
+    setLoading(true)
+    
     try {
-      setLoading(true)
-      await TeamService.deleteTeam(id)
+      const supabase = await createClient()
+      
+      const { error } = await supabase
+        .from("teams")
+        .delete()
+        .eq("id", id)
+      
+      if (error) {
+        throw new Error(`Erro ao excluir equipe: ${error.message}`)
+      }
+      
       toast({
         title: "Sucesso",
         description: "Equipe excluída com sucesso",
@@ -165,13 +205,13 @@ export function useTeams() {
       router.refresh()
       return true
     } catch (error) {
-      console.error("Erro ao excluir equipe:", error)
+      console.error("[DELETE_TEAM_ERROR]", error)
       toast({
         title: "Erro",
         description: "Não foi possível excluir a equipe",
         variant: "destructive",
       })
-      return false
+      throw error
     } finally {
       setLoading(false)
     }
