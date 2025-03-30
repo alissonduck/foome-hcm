@@ -30,8 +30,7 @@ const teamFormSchema = z.object({
     .nullable()
     .optional(),
   manager_id: z
-    .string()
-    .nullable()
+    .union([z.string(), z.literal("none"), z.null()])
     .optional(),
   company_id: z.string(),
 })
@@ -59,12 +58,17 @@ export function TeamForm({ companyId, initialData, employees = [], isEditing = f
   // Inicialização do formulário com React Hook Form e Zod
   const form = useForm<TeamFormValues>({
     resolver: zodResolver(teamFormSchema),
-    defaultValues: initialData || {
-      name: "",
-      description: "",
-      manager_id: null,
-      company_id: companyId,
-    },
+    defaultValues: initialData 
+      ? {
+          ...initialData,
+          manager_id: initialData.manager_id || "none"
+        }
+      : {
+          name: "",
+          description: "",
+          manager_id: "none",
+          company_id: companyId,
+        },
   })
 
   // Função de submissão do formulário
@@ -72,6 +76,11 @@ export function TeamForm({ companyId, initialData, employees = [], isEditing = f
     setIsSubmitting(true)
     
     try {
+      // Converte "none" para null
+      if (data.manager_id === "none") {
+        data.manager_id = null;
+      }
+
       if (isEditing && initialData?.id) {
         // Atualiza a equipe existente
         await updateTeam(initialData.id, data)
@@ -127,7 +136,7 @@ export function TeamForm({ companyId, initialData, employees = [], isEditing = f
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">Sem gestor definido</SelectItem>
+                    <SelectItem value="none">Sem gestor definido</SelectItem>
                     {employees.map((employee) => (
                       <SelectItem key={employee.id} value={employee.id}>
                         {employee.full_name} {employee.position ? `(${employee.position})` : ""}
