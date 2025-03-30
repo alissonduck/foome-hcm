@@ -53,6 +53,10 @@ export default function DocumentViewDialog({
   // Função para baixar o documento
   async function downloadDocument() {
     try {
+      if (!document || !document.id) {
+        throw new Error("Documento inválido")
+      }
+      
       setLoading(true)
       
       // Gera URL para download do documento
@@ -75,6 +79,8 @@ export default function DocumentViewDialog({
    * @param status Novo status do documento
    */
   async function handleStatusChange(status: DocumentStatus) {
+    if (!document || !document.id) return
+    
     await statusUpdateMutation.mutateAsync({
       documentId: document.id,
       status
@@ -87,6 +93,8 @@ export default function DocumentViewDialog({
    * Função para lidar com a exclusão do documento
    */
   async function handleDelete() {
+    if (!document || !document.id) return
+    
     await deleteMutation.mutateAsync(document.id)
     
     onOpenChange(false)
@@ -95,6 +103,12 @@ export default function DocumentViewDialog({
 
   // Retorna o ícone de acordo com o status do documento
   function getStatusIcon() {
+    // Verifica se document existe e tem propriedade status
+    if (!document || !document.status) {
+      // Retorna ícone padrão caso document ou status seja nulo
+      return <Clock className="h-5 w-5 text-yellow-500" />
+    }
+    
     switch (document.status) {
       case "approved":
         return <FileCheck className="h-5 w-5 text-green-500" />
@@ -106,16 +120,37 @@ export default function DocumentViewDialog({
     }
   }
 
+  // Se não houver documento, retorna um diálogo vazio
+  if (!document) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Documento não encontrado</DialogTitle>
+            <DialogDescription>
+              Não foi possível carregar os detalhes do documento.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {getStatusIcon()}
-            {document.name}
+            {document.name || "Documento sem nome"}
           </DialogTitle>
           <DialogDescription>
-            Tipo: {document.type} • Status: {translateStatus(document.status)}
+            Tipo: {document.type || "N/A"} • Status: {document.status ? translateStatus(document.status) : "N/A"}
           </DialogDescription>
         </DialogHeader>
 
@@ -123,7 +158,7 @@ export default function DocumentViewDialog({
           <div className="rounded-md bg-muted p-4">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="font-medium">Enviado em:</div>
-              <div>{new Date(document.created_at).toLocaleDateString()}</div>
+              <div>{document.created_at ? new Date(document.created_at).toLocaleDateString() : "N/A"}</div>
               
               {document.expiration_date && (
                 <>
@@ -136,7 +171,7 @@ export default function DocumentViewDialog({
               <div>{document.file_size ? (document.file_size / 1024 / 1024).toFixed(2) : '0'} MB</div>
               
               <div className="font-medium">Nome do arquivo:</div>
-              <div className="truncate">{document.file_name}</div>
+              <div className="truncate">{document.file_name || "N/A"}</div>
             </div>
           </div>
 
@@ -144,7 +179,7 @@ export default function DocumentViewDialog({
             <Button
               variant="outline"
               onClick={downloadDocument}
-              disabled={loading || statusUpdateMutation.isPending || deleteMutation.isPending}
+              disabled={loading || statusUpdateMutation.isPending || deleteMutation.isPending || !document.id}
             >
               {loading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
