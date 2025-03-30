@@ -59,13 +59,13 @@ export default function DocumentManagement({
   const [selectedDocument, setSelectedDocument] = useState<DocumentWithEmployee | null>(null)
   const [filters, setFilters] = useState<DocumentFilters>({
     status: "all",
-    employeeId: isAdmin ? "" : currentEmployeeId,
+    employeeId: isAdmin ? "all" : currentEmployeeId,
     search: "",
   })
 
   const { translateStatus, useDocumentsQuery } = useDocuments()
   const { data: documents = initialDocuments, isLoading } = useDocumentsQuery(
-    filters.employeeId || null,
+    filters.employeeId === "all" ? null : filters.employeeId || null,
     "current"
   )
 
@@ -126,7 +126,7 @@ export default function DocumentManagement({
                 <SelectValue placeholder="Funcionário" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
                 {employees.map((emp) => (
                   <SelectItem key={emp.id} value={emp.id}>
                     {emp.full_name}

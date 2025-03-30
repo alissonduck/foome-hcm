@@ -23,23 +23,18 @@ export class documentService {
    */
   static async getDocuments(employeeId: string | null, companyId: string): Promise<DocumentWithEmployee[]> {
     try {
+      if (!companyId) {
+        console.warn("ID da empresa não fornecido")
+        return []
+      }
+
       const supabase = await createClient()
       
       let query = supabase
         .from("employee_documents")
         .select(`
-          id, 
-          name, 
-          type, 
-          status, 
-          file_path, 
-          file_name, 
-          file_type,
-          file_size,
-          expiration_date, 
-          created_at,
-          employee_id,
-          employees (
+          *,
+          employees:employee_id (
             id, 
             full_name,
             email
@@ -50,20 +45,29 @@ export class documentService {
       if (employeeId) {
         query = query.eq("employee_id", employeeId)
       } else {
-        // Se for admin buscando todos os documentos da empresa
-        query = query.eq("employees.company_id", companyId)
+        // Primeiro obtém os IDs dos funcionários da empresa
+        const { data: employeeIds } = await supabase
+          .from("employees")
+          .select("id")
+          .eq("company_id", companyId)
+        
+        if (employeeIds && employeeIds.length > 0) {
+          // Filtra os documentos pelos IDs dos funcionários
+          query = query.in("employee_id", employeeIds.map(e => e.id))
+        }
       }
       
       const { data, error } = await query.order("created_at", { ascending: false })
       
       if (error) {
+        console.error("Erro na consulta:", error)
         throw error
       }
       
-      return data as DocumentWithEmployee[]
+      return data as unknown as DocumentWithEmployee[]
     } catch (error) {
       console.error("Erro ao buscar documentos:", error)
-      throw new Error("Não foi possível buscar os documentos")
+      throw new Error(`Não foi possível buscar os documentos: ${JSON.stringify(error)}`)
     }
   }
   
@@ -74,23 +78,17 @@ export class documentService {
    */
   static async getDocument(documentId: string): Promise<DocumentWithEmployee> {
     try {
+      if (!documentId) {
+        throw new Error("ID do documento não fornecido")
+      }
+
       const supabase = await createClient()
       
       const { data, error } = await supabase
         .from("employee_documents")
         .select(`
-          id, 
-          name, 
-          type, 
-          status, 
-          file_path, 
-          file_name, 
-          file_type,
-          file_size,
-          expiration_date, 
-          created_at,
-          employee_id,
-          employees (
+          *,
+          employees:employee_id (
             id, 
             full_name,
             email
@@ -100,13 +98,14 @@ export class documentService {
         .single()
       
       if (error) {
+        console.error("Erro na consulta:", error)
         throw error
       }
       
-      return data as DocumentWithEmployee
+      return data as unknown as DocumentWithEmployee
     } catch (error) {
       console.error("Erro ao buscar documento:", error)
-      throw new Error("Não foi possível buscar o documento")
+      throw new Error(`Não foi possível buscar o documento: ${JSON.stringify(error)}`)
     }
   }
   
@@ -338,13 +337,13 @@ export class documentService {
     try {
       const supabase = await createClient()
       
-      const { data, error } = await supabase
+      const { data } = await supabase
         .storage
         .from("documents")
         .getPublicUrl(filePath)
       
-      if (error) {
-        throw error
+      if (!data) {
+        throw new Error("Não foi possível obter a URL pública do arquivo")
       }
       
       // Faz uma requisição HEAD para obter os metadados

@@ -32,7 +32,7 @@ export interface DocumentUploadResult {
 
 // Interface para filtros de documentos
 export interface DocumentFilters {
-  employeeId?: string
+  employeeId?: string | "all"
   status?: DocumentStatus | "all"
   search?: string
 }

@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * Schemas de validação para documentos
  * Define os esquemas de validação para documentos de funcionários
@@ -18,9 +20,13 @@ export const documentUploadSchema = z.object({
     required_error: "Selecione o funcionário."
   }),
   expirationDate: z.string().optional(),
-  file: z.instanceof(FileList).refine((files) => files.length > 0, {
-    message: "Selecione um arquivo para upload."
-  }),
+  file: z.any()
+    .refine((files) => files instanceof FileList, {
+      message: "Campo de arquivo inválido."
+    })
+    .refine((files) => files instanceof FileList && files.length > 0, {
+      message: "Selecione um arquivo para upload."
+    }),
 })
 
 /**
