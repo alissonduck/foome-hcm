@@ -4,6 +4,7 @@
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import EmployeeDetails from "@/components/employees/employee-details"
+import { getCurrentCompany } from "@/lib/auth-utils-server"
 
 // Importe o componente de histórico de cargos
 import { EmployeeRoleHistory } from "@/components/roles/employee-role-history"
@@ -16,18 +17,20 @@ import { Tabs, TabsContent } from "@/components/ui/tabs"
  */
 export default async function EmployeeDetailsPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const supabase = createClient()
+  const supabase = await createClient()
 
-  // Busca os dados do usuário autenticado
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  // Obtém a empresa atual e o usuário logado
+  const company = await getCurrentCompany()
+  
+  if (!company) {
+    notFound()
+  }
 
   // Busca os dados do funcionário logado
   const { data: currentEmployee } = await supabase
     .from("employees")
     .select("company_id, is_admin")
-    .eq("user_id", session?.user.id)
+    .eq("user_id", company.userId)
     .single()
 
   if (!currentEmployee) {
@@ -48,7 +51,7 @@ export default async function EmployeeDetailsPage(props: { params: Promise<{ id:
 
   // Verifica se o usuário tem permissão para acessar os detalhes
   // (apenas administradores ou o próprio funcionário)
-  const canAccess = currentEmployee.is_admin || employee.user_id === session?.user.id
+  const canAccess = currentEmployee.is_admin || employee.user_id === company.userId
 
   if (!canAccess) {
     notFound()
@@ -91,16 +94,8 @@ export default async function EmployeeDetailsPage(props: { params: Promise<{ id:
       timeOffs={timeOffs || []}
       onboardingTasks={onboardingTasks || []}
       isAdmin={currentEmployee.is_admin}
-      currentUserId={session?.user.id}
-    >
-      {/* Adicione o componente na seção de abas */}
-      <Tabs>
-        <TabsContent value="professional" className="space-y-6">
-          <EmployeeRoleHistory employeeId={employee.id} />
-          {/* Outros componentes profissionais */}
-        </TabsContent>
-      </Tabs>
-    </EmployeeDetails>
+      currentUserId={company.userId}
+    />
   )
 }
 
