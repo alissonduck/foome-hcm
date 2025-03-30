@@ -26,6 +26,8 @@ Este software será comercializado com médias e grandes empresas, então atente
 - Obrigatoriamente utilize chamadas assíncronas em APIs externas e operações de banco de dados.
 - Construa o aplicativo pensando na escala futura, seguindo boas práticas de performance.
 - Garanta a manutebilidade desta aplicação, construíndo componentes pequenos e com responsabilidade única.
+- Utilize mensagens de sucesso e erro consistentes com toast. Sempre utilize o mesmo componente de toast para sucesso e erro.
+- Garanta a entrada e saída de dados adequada em cada funcionalidade ou endpoint, conforme as tabelas do banco de dados.
 </DevelopmentRules>
 
 <Folders>
