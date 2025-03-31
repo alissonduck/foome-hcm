@@ -1,30 +1,25 @@
 /**
  * Página de listagem de funcionários
  */
-import { createClient } from "@/lib/supabase/server"
+import { getEmployees } from "@/server/actions/employee-actions"
 import EmployeeList from "@/components/employees/employee-list"
 import { getCurrentCompany } from "@/lib/auth-utils-server"
+import { notFound } from "next/navigation"
 
 /**
  * Página de listagem de funcionários
  * @returns Listagem de funcionários com filtros
  */
 export default async function EmployeesPage() {
-  const supabase = await createClient()
-  
   // Obter a empresa atual
   const company = await getCurrentCompany()
   
   if (!company) {
-    return <div className="p-8 text-center">Empresa não encontrada ou usuário não autenticado</div>
+    notFound()
   }
 
-  // Busca todos os funcionários da empresa
-  const { data: employees } = await supabase
-    .from("employees")
-    .select("*")
-    .eq("company_id", company.id)
-    .order("full_name")
+  // Busca todos os funcionários da empresa usando Server Action
+  const employees = await getEmployees()
 
   return (
     <div className="space-y-6">
@@ -33,7 +28,7 @@ export default async function EmployeesPage() {
         <p className="text-muted-foreground">Gerencie os funcionários da sua empresa</p>
       </div>
 
-      <EmployeeList employees={employees || []} isAdmin={company.isAdmin || false} />
+      <EmployeeList employees={employees} isAdmin={company.isAdmin || false} />
     </div>
   )
 }

@@ -1,11 +1,14 @@
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/server"
 import { EmployeeRole, CreateEmployeeRoleInput, UpdateEmployeeRoleInput } from "@/lib/types/employee-role"
 
 export class EmployeeRoleService {
-  private supabase = createClient()
+  private async getSupabase() {
+    return await createClient()
+  }
 
   async list(employeeId: string): Promise<EmployeeRole[]> {
-    const { data, error } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data, error } = await supabase
       .from("employee_roles")
       .select(`
         *,
@@ -19,7 +22,8 @@ export class EmployeeRoleService {
   }
 
   async create(input: CreateEmployeeRoleInput): Promise<EmployeeRole> {
-    const { data, error } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data, error } = await supabase
       .from("employee_roles")
       .insert([input])
       .select(`
@@ -33,7 +37,8 @@ export class EmployeeRoleService {
   }
 
   async update(id: string, input: UpdateEmployeeRoleInput): Promise<EmployeeRole> {
-    const { data, error } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data, error } = await supabase
       .from("employee_roles")
       .update(input)
       .eq("id", id)
@@ -48,7 +53,8 @@ export class EmployeeRoleService {
   }
 
   async delete(id: string): Promise<void> {
-    const { error } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { error } = await supabase
       .from("employee_roles")
       .delete()
       .eq("id", id)
@@ -57,7 +63,8 @@ export class EmployeeRoleService {
   }
 
   async getCurrentRole(employeeId: string): Promise<EmployeeRole | null> {
-    const { data, error } = await this.supabase
+    const supabase = await this.getSupabase()
+    const { data, error } = await supabase
       .from("employee_roles")
       .select(`
         *,
