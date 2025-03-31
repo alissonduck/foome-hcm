@@ -3,7 +3,7 @@
 /**
  * Formulário de admissão de funcionário
  */
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -22,10 +22,15 @@ import { numbersOnly } from "@/lib/utils/formatters"
 import { 
   EmployeeDependentInsert, 
   DependentGender, 
-  DependentRelationship 
+  DependentRelationship,
+  EmployeeDependent
 } from "@/lib/types/documents"
 import { DependentManagement } from "@/components/dependents/dependent-management"
 import { DependentFormValues } from "@/lib/schemas/dependent-schema"
+import { DependentDialog } from "@/components/dependents/dependent-dialog"
+import { DependentForm } from "@/components/dependents/dependent-form"
+import { format } from "date-fns"
+import { pt } from "date-fns/locale"
 
 /**
  * Props para o componente EmployeeAdmissionForm
@@ -140,9 +145,17 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("personal")
   const [dependents, setDependents] = useState<EmployeeDependentInsert[]>([])
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [currentDependent, setCurrentDependent] = useState<EmployeeDependent | undefined>(undefined)
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
+
+  // Monitor para o estado do diálogo
+  useEffect(() => {
+    console.log("Estado do diálogo alterado:", dialogOpen);
+  }, [dialogOpen]);
 
   // Função para adicionar um dependente temporário
   const handleAddDependent = (values: DependentFormValues & { employee_id?: string }) => {
@@ -152,26 +165,36 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
       employee_id: "", // Será definido depois que o funcionário for criado
     };
     
-    setDependents([...dependents, newDependent]);
-    toast({
-      title: "Dependente adicionado",
-      description: "O dependente foi adicionado temporariamente e será salvo junto com o funcionário."
-    });
+    if (editingIndex !== null) {
+      // Editar dependente existente
+      const updatedDependents = [...dependents];
+      updatedDependents[editingIndex] = newDependent;
+      setDependents(updatedDependents);
+      
+      toast({
+        title: "Dependente atualizado",
+        description: "O dependente foi atualizado com sucesso."
+      });
+      
+      setEditingIndex(null);
+    } else {
+      // Adicionar novo dependente
+      setDependents([...dependents, newDependent]);
+      
+      toast({
+        title: "Dependente adicionado",
+        description: "O dependente foi adicionado com sucesso."
+      });
+    }
+    
+    setDialogOpen(false);
   }
   
-  // Função para atualizar um dependente temporário
-  const handleUpdateDependent = (index: number, values: DependentFormValues & { employee_id?: string }) => {
-    const updatedDependents = [...dependents];
-    updatedDependents[index] = {
-      ...values,
-      employee_id: "", // Será definido depois que o funcionário for criado
-    };
-    
-    setDependents(updatedDependents);
-    toast({
-      title: "Dependente atualizado",
-      description: "As informações do dependente foram atualizadas."
-    });
+  // Função para iniciar a edição de um dependente
+  const handleEditDependentStart = (index: number) => {
+    setEditingIndex(index);
+    setCurrentDependent(dependents[index] as unknown as EmployeeDependent);
+    setDialogOpen(true);
   }
   
   // Função para remover um dependente temporário
@@ -184,6 +207,15 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
       title: "Dependente removido",
       description: "O dependente foi removido da lista."
     });
+  }
+  
+  // Função para abrir o diálogo para adicionar novo dependente
+  const handleOpenAddDependentDialog = () => {
+    console.log("Abrindo diálogo para adicionar dependente");
+    setCurrentDependent(undefined);
+    setEditingIndex(null);
+    setDialogOpen(true);
+    console.log("Estado do diálogo após atualização:", true);
   }
 
   // Configuração do formulário
@@ -369,275 +401,66 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
     }
   }
 
-  // Na função que adiciona dependente de teste (botão "Adicionar Dependente Teste")
-  const handleAddTestDependent = () => {
-    const testDependent = {
-      full_name: 'Filho Teste',
-      birth_date: '2020-01-01',
-      relationship: DependentRelationship.CHILD,
-      gender: DependentGender.MALE,
-      has_disability: false,
-      is_student: true
-    }
-    
-    handleAddDependent(testDependent)
-    toast({
-      title: "Dependente adicionado",
-      description: "Dependente de teste adicionado com sucesso."
-    })
-  }
-
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="personal">Dados Pessoais</TabsTrigger>
-                <TabsTrigger value="professional">Dados Profissionais</TabsTrigger>
-                <TabsTrigger value="address">Endereço</TabsTrigger>
-                <TabsTrigger value="financial">Dados Financeiros</TabsTrigger>
-                <TabsTrigger value="dependents">Dependentes</TabsTrigger>
-              </TabsList>
+    <>
+      <Card>
+        <CardContent className="pt-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-5">
+                  <TabsTrigger value="personal">Dados Pessoais</TabsTrigger>
+                  <TabsTrigger value="professional">Dados Profissionais</TabsTrigger>
+                  <TabsTrigger value="address">Endereço</TabsTrigger>
+                  <TabsTrigger value="financial">Dados Financeiros</TabsTrigger>
+                  <TabsTrigger value="dependents">Dependentes</TabsTrigger>
+                </TabsList>
 
-              {/* Aba de Dados Pessoais */}
-              <TabsContent value="personal" className="space-y-4 pt-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="fullName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome Completo</FormLabel>
-                        <FormControl>
-                          <Input placeholder="João Silva" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>E-mail</FormLabel>
-                        <FormControl>
-                          <Input placeholder="joao.silva@exemplo.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Telefone</FormLabel>
-                        <FormControl>
-                          <FormattedInput 
-                            formatter="cellphone" 
-                            placeholder="(11) 98765-4321" 
-                            {...field} 
-                            onValueChange={(raw) => {
-                              form.setValue("phone", raw, { shouldValidate: true });
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="cpf"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>CPF</FormLabel>
-                        <FormControl>
-                          <FormattedInput 
-                            formatter="cpf" 
-                            placeholder="123.456.789-00" 
-                            {...field} 
-                            onValueChange={(raw) => {
-                              form.setValue("cpf", raw, { shouldValidate: true });
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="rg"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>RG</FormLabel>
-                        <FormControl>
-                          <FormattedInput 
-                            formatter="rg" 
-                            placeholder="09.295.014-0" 
-                            {...field} 
-                            onValueChange={(raw) => {
-                              form.setValue("rg", raw, { shouldValidate: true });
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <FormField
-                    control={form.control}
-                    name="maritalStatus"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Estado Civil</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o estado civil" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value={MaritalStatus.SINGLE}>Solteiro(a)</SelectItem>
-                            <SelectItem value={MaritalStatus.MARRIED}>Casado(a)</SelectItem>
-                            <SelectItem value={MaritalStatus.DIVORCED}>Divorciado(a)</SelectItem>
-                            <SelectItem value={MaritalStatus.WIDOWED}>Viúvo(a)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="educationLevel"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Escolaridade</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione a escolaridade" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value={EducationLevel.ELEMENTARY}>Ensino Fundamental</SelectItem>
-                            <SelectItem value={EducationLevel.HIGH_SCHOOL}>Ensino Médio</SelectItem>
-                            <SelectItem value={EducationLevel.TECHNICAL}>Ensino Técnico</SelectItem>
-                            <SelectItem value={EducationLevel.BACHELOR}>Graduação</SelectItem>
-                            <SelectItem value={EducationLevel.MASTER}>Mestrado</SelectItem>
-                            <SelectItem value={EducationLevel.DOCTORATE}>Doutorado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="flex justify-end">
-                  <Button type="button" onClick={nextTab}>
-                    Próximo
-                  </Button>
-                </div>
-              </TabsContent>
-
-              {/* Aba de Dados Profissionais */}
-              <TabsContent value="professional" className="space-y-4 pt-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="position"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cargo</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Analista de RH" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="department"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Departamento</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Recursos Humanos" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="contractType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de Contrato</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o tipo de contrato" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value={ContractType.CLT}>CLT</SelectItem>
-                            <SelectItem value={ContractType.PJ}>PJ</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="hireDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Data de Admissão</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {form.watch("contractType") === ContractType.CLT && (
+                {/* Aba de Dados Pessoais */}
+                <TabsContent value="personal" className="space-y-4 pt-4">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
-                      name="pis"
+                      name="fullName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>PIS</FormLabel>
+                          <FormLabel>Nome Completo</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="123.45678.90-1" 
+                            <Input placeholder="João Silva" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>E-mail</FormLabel>
+                          <FormControl>
+                            <Input placeholder="joao.silva@exemplo.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone</FormLabel>
+                          <FormControl>
+                            <FormattedInput 
+                              formatter="cellphone" 
+                              placeholder="(11) 98765-4321" 
                               {...field} 
-                              onChange={(e) => {
-                                // Mantém apenas números
-                                const value = numbersOnly(e.target.value);
-                                // Atualiza o campo com apenas números
-                                form.setValue("pis", value, { shouldValidate: true });
+                              onValueChange={(raw) => {
+                                form.setValue("phone", raw, { shouldValidate: true });
                               }}
                             />
                           </FormControl>
@@ -647,19 +470,37 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                     />
                     <FormField
                       control={form.control}
-                      name="ctps"
+                      name="cpf"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>CTPS</FormLabel>
+                          <FormLabel>CPF</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="12345/001" 
+                            <FormattedInput 
+                              formatter="cpf" 
+                              placeholder="123.456.789-00" 
                               {...field} 
-                              onChange={(e) => {
-                                // Mantém apenas números e /
-                                const value = e.target.value.replace(/[^\d\/]/g, '');
-                                // Atualiza o campo
-                                field.onChange(value);
+                              onValueChange={(raw) => {
+                                form.setValue("cpf", raw, { shouldValidate: true });
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="rg"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>RG</FormLabel>
+                          <FormControl>
+                            <FormattedInput 
+                              formatter="rg" 
+                              placeholder="09.295.014-0" 
+                              {...field} 
+                              onValueChange={(raw) => {
+                                form.setValue("rg", raw, { shouldValidate: true });
                               }}
                             />
                           </FormControl>
@@ -668,24 +509,148 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                       )}
                     />
                   </div>
-                )}
 
-                {form.watch("contractType") === ContractType.PJ && (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <FormField
+                      control={form.control}
+                      name="maritalStatus"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Estado Civil</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o estado civil" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value={MaritalStatus.SINGLE}>Solteiro(a)</SelectItem>
+                              <SelectItem value={MaritalStatus.MARRIED}>Casado(a)</SelectItem>
+                              <SelectItem value={MaritalStatus.DIVORCED}>Divorciado(a)</SelectItem>
+                              <SelectItem value={MaritalStatus.WIDOWED}>Viúvo(a)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="educationLevel"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Escolaridade</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione a escolaridade" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value={EducationLevel.ELEMENTARY}>Ensino Fundamental</SelectItem>
+                              <SelectItem value={EducationLevel.HIGH_SCHOOL}>Ensino Médio</SelectItem>
+                              <SelectItem value={EducationLevel.TECHNICAL}>Ensino Técnico</SelectItem>
+                              <SelectItem value={EducationLevel.BACHELOR}>Graduação</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button type="button" onClick={nextTab}>
+                      Próximo
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                {/* Aba de Dados Profissionais */}
+                <TabsContent value="professional" className="space-y-4 pt-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="position"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cargo</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Analista de RH" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="department"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Departamento</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Recursos Humanos" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="contractType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo de Contrato</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o tipo de contrato" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value={ContractType.CLT}>CLT</SelectItem>
+                              <SelectItem value={ContractType.PJ}>PJ</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="hireDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data de Admissão</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {form.watch("contractType") === ContractType.CLT && (
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <FormField
                         control={form.control}
-                        name="cnpj"
+                        name="pis"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>CNPJ</FormLabel>
+                            <FormLabel>PIS</FormLabel>
                             <FormControl>
-                              <FormattedInput 
-                                formatter="cnpj" 
-                                placeholder="12.345.678/0001-90" 
+                              <Input 
+                                placeholder="123.45678.90-1" 
                                 {...field} 
-                                onValueChange={(raw) => {
-                                  form.setValue("cnpj", raw, { shouldValidate: true });
+                                onChange={(e) => {
+                                  // Mantém apenas números
+                                  const value = numbersOnly(e.target.value);
+                                  // Atualiza o campo com apenas números
+                                  form.setValue("pis", value, { shouldValidate: true });
                                 }}
                               />
                             </FormControl>
@@ -695,278 +660,104 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                       />
                       <FormField
                         control={form.control}
-                        name="companyName"
+                        name="ctps"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Nome da Empresa</FormLabel>
+                            <FormLabel>CTPS</FormLabel>
                             <FormControl>
-                              <Input placeholder="João Silva Consultoria ME" {...field} />
+                              <Input 
+                                placeholder="12345/001" 
+                                {...field} 
+                                onChange={(e) => {
+                                  // Mantém apenas números e /
+                                  const value = e.target.value.replace(/[^\d\/]/g, '');
+                                  // Atualiza o campo
+                                  field.onChange(value);
+                                }}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
-                    <FormField
-                      control={form.control}
-                      name="serviceDescription"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Descrição do Serviço</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Consultoria em Recursos Humanos" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
+                  )}
 
-                <div className="flex justify-between">
-                  <Button type="button" variant="outline" onClick={prevTab}>
-                    Voltar
-                  </Button>
-                  <Button type="button" onClick={nextTab}>
-                    Próximo
-                  </Button>
-                </div>
-              </TabsContent>
-
-              {/* Aba de Endereço */}
-              <TabsContent value="address" className="space-y-4 pt-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div className="md:col-span-2">
-                    <FormField
-                      control={form.control}
-                      name="street"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Rua</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Av. Paulista" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="number"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Número</FormLabel>
-                        <FormControl>
-                          <Input placeholder="1000" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="complement"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Complemento</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Apto 123" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="neighborhood"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bairro</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Bela Vista" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cidade</FormLabel>
-                        <FormControl>
-                          <Input placeholder="São Paulo" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="state"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Estado</FormLabel>
-                        <FormControl>
-                          <Input placeholder="SP" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="zipCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>CEP</FormLabel>
-                        <FormControl>
-                          <FormattedInput 
-                            formatter="cep" 
-                            placeholder="01310-100" 
-                            {...field} 
-                            onValueChange={(raw) => {
-                              form.setValue("zipCode", raw, { shouldValidate: true });
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="flex justify-between">
-                  <Button type="button" variant="outline" onClick={prevTab}>
-                    Voltar
-                  </Button>
-                  <Button type="button" onClick={nextTab}>
-                    Próximo
-                  </Button>
-                </div>
-              </TabsContent>
-
-              {/* Aba de Dados Financeiros */}
-              <TabsContent value="financial" className="space-y-4 pt-4">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Dados Bancários</h3>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <FormField
-                      control={form.control}
-                      name="bankName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Banco</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Banco do Brasil" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="accountType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tipo de Conta</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  {form.watch("contractType") === ContractType.PJ && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <FormField
+                          control={form.control}
+                          name="cnpj"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>CNPJ</FormLabel>
+                              <FormControl>
+                                <FormattedInput 
+                                  formatter="cnpj" 
+                                  placeholder="12.345.678/0001-90" 
+                                  {...field} 
+                                  onValueChange={(raw) => {
+                                    form.setValue("cnpj", raw, { shouldValidate: true });
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="companyName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nome da Empresa</FormLabel>
+                              <FormControl>
+                                <Input placeholder="João Silva Consultoria ME" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="serviceDescription"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Descrição do Serviço</FormLabel>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione o tipo de conta" />
-                              </SelectTrigger>
+                              <Input placeholder="Consultoria em Recursos Humanos" {...field} />
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="checking">Conta Corrente</SelectItem>
-                              <SelectItem value="savings">Conta Poupança</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="pixKey"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Chave PIX</FormLabel>
-                          <FormControl>
-                            <Input placeholder="CPF, e-mail, telefone ou chave aleatória" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="agency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Agência</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="1234" 
-                              {...field} 
-                              onChange={(e) => {
-                                // Mantém apenas números e -
-                                const value = e.target.value.replace(/[^\d-]/g, '');
-                                // Atualiza o campo
-                                field.onChange(value);
-                              }}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="account"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Conta</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="12345-6" 
-                              {...field} 
-                              onChange={(e) => {
-                                // Mantém apenas números e -
-                                const value = e.target.value.replace(/[^\d-]/g, '');
-                                // Atualiza o campo
-                                field.onChange(value);
-                              }}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  )}
 
-                <div className="space-y-4 pt-4">
-                  <h3 className="text-lg font-medium">Contato de Emergência</h3>
+                  <div className="flex justify-between">
+                    <Button type="button" variant="outline" onClick={prevTab}>
+                      Voltar
+                    </Button>
+                    <Button type="button" onClick={nextTab}>
+                      Próximo
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                {/* Aba de Endereço */}
+                <TabsContent value="address" className="space-y-4 pt-4">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div className="md:col-span-2">
                       <FormField
                         control={form.control}
-                        name="emergencyName"
+                        name="street"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Nome</FormLabel>
+                            <FormLabel>Rua</FormLabel>
                             <FormControl>
-                              <Input placeholder="Maria Silva" {...field} />
+                              <Input placeholder="Av. Paulista" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -975,109 +766,391 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                     </div>
                     <FormField
                       control={form.control}
-                      name="emergencyRelationship"
+                      name="number"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Parentesco</FormLabel>
+                          <FormLabel>Número</FormLabel>
                           <FormControl>
-                            <Input placeholder="Cônjuge" {...field} />
+                            <Input placeholder="1000" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                  <FormField
-                    control={form.control}
-                    name="emergencyPhone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Telefone de Emergência</FormLabel>
-                        <FormControl>
-                          <FormattedInput 
-                            formatter="cellphone" 
-                            placeholder="(11) 99999-9999" 
-                            {...field} 
-                            onValueChange={(raw) => {
-                              form.setValue("emergencyPhone", raw, { shouldValidate: true });
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
 
-                <div className="flex justify-between pt-4">
-                  <Button type="button" variant="outline" onClick={prevTab}>
-                    Voltar
-                  </Button>
-                  <Button type="button" onClick={nextTab}>
-                    Próximo
-                  </Button>
-                </div>
-              </TabsContent>
-
-              {/* Nova aba de Dependentes */}
-              <TabsContent value="dependents" className="space-y-4 pt-4">
-                <div className="flex flex-col space-y-4">
-                  <div className="border rounded-md p-4">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Adicione dependentes (filhos) do funcionário. Estes dados são importantes para benefícios, imposto de renda e registros legais.
-                    </p>
-                    
-                    {/* Componente personalizado para gerenciar dependentes */}
-                    <div className="flex flex-col space-y-4">
-                      {dependents.length === 0 ? (
-                        <div className="text-center py-6 text-muted-foreground">
-                          Nenhum dependente adicionado para este funcionário.
-                        </div>
-                      ) : (
-                        <div className="border rounded-md p-2">
-                          <ul className="divide-y">
-                            {dependents.map((dependent, index) => (
-                              <li key={index} className="py-2 px-3 flex justify-between items-center">
-                                <span className="font-medium">{dependent.full_name}</span>
-                                <div className="flex space-x-2">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => handleRemoveDependent(index)}
-                                  >
-                                    Remover
-                                  </Button>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="complement"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Complemento</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Apto 123" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
-                      
-                      <Button 
-                        variant="outline" 
-                        onClick={handleAddTestDependent}
-                      >
-                        Adicionar Dependente Teste
-                      </Button>
+                    />
+                    <FormField
+                      control={form.control}
+                      name="neighborhood"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bairro</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Bela Vista" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <FormField
+                      control={form.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cidade</FormLabel>
+                          <FormControl>
+                            <Input placeholder="São Paulo" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="state"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Estado</FormLabel>
+                          <FormControl>
+                            <Input placeholder="SP" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="zipCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CEP</FormLabel>
+                          <FormControl>
+                            <FormattedInput 
+                              formatter="cep" 
+                              placeholder="01310-100" 
+                              {...field} 
+                              onValueChange={(raw) => {
+                                form.setValue("zipCode", raw, { shouldValidate: true });
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="flex justify-between">
+                    <Button type="button" variant="outline" onClick={prevTab}>
+                      Voltar
+                    </Button>
+                    <Button type="button" onClick={nextTab}>
+                      Próximo
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                {/* Aba de Dados Financeiros */}
+                <TabsContent value="financial" className="space-y-4 pt-4">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Dados Bancários</h3>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                      <FormField
+                        control={form.control}
+                        name="bankName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Banco</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Banco do Brasil" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="accountType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tipo de Conta</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione o tipo de conta" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="checking">Conta Corrente</SelectItem>
+                                <SelectItem value="savings">Conta Poupança</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="pixKey"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Chave PIX</FormLabel>
+                            <FormControl>
+                              <Input placeholder="CPF, e-mail, telefone ou chave aleatória" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="agency"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Agência</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="1234" 
+                                {...field} 
+                                onChange={(e) => {
+                                  // Mantém apenas números e -
+                                  const value = e.target.value.replace(/[^\d-]/g, '');
+                                  // Atualiza o campo
+                                  field.onChange(value);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="account"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Conta</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="12345-6" 
+                                {...field} 
+                                onChange={(e) => {
+                                  // Mantém apenas números e -
+                                  const value = e.target.value.replace(/[^\d-]/g, '');
+                                  // Atualiza o campo
+                                  field.onChange(value);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                   </div>
-                </div>
-                
-                <div className="flex justify-between">
-                  <Button type="button" variant="outline" onClick={prevTab}>
-                    Voltar
-                  </Button>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Cadastrando..." : "Cadastrar Funcionário"}
-                  </Button>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+
+                  <div className="space-y-4 pt-4">
+                    <h3 className="text-lg font-medium">Contato de Emergência</h3>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                      <div className="md:col-span-2">
+                        <FormField
+                          control={form.control}
+                          name="emergencyName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nome</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Maria Silva" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="emergencyRelationship"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Parentesco</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Cônjuge" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="emergencyPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone de Emergência</FormLabel>
+                          <FormControl>
+                            <FormattedInput 
+                              formatter="cellphone" 
+                              placeholder="(11) 99999-9999" 
+                              {...field} 
+                              onValueChange={(raw) => {
+                                form.setValue("emergencyPhone", raw, { shouldValidate: true });
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="flex justify-between pt-4">
+                    <Button type="button" variant="outline" onClick={prevTab}>
+                      Voltar
+                    </Button>
+                    <Button type="button" onClick={nextTab}>
+                      Próximo
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                {/* Nova aba de Dependentes */}
+                <TabsContent value="dependents" className="space-y-4 pt-4">
+                  <div className="flex flex-col space-y-4">
+                    <div className="border rounded-md p-4">
+                      
+                      {/* Componente personalizado para gerenciar dependentes */}
+                      <div className="flex flex-col space-y-4">
+                        {dependents.length === 0 ? (
+                          <div className="text-center py-6 text-muted-foreground">
+                            Nenhum dependente adicionado para este funcionário. Adicione dependentes (filhos) do funcionário. Estes dados são importantes para benefícios, imposto de renda e registros legais.
+                          </div>
+                        ) : (
+                          <div className="border rounded-md">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Nasc.</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parentesco</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {dependents.map((dependent, index) => (
+                                  <tr key={index}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                      {dependent.full_name}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {format(new Date(dependent.birth_date), "dd/MM/yyyy", { locale: pt })}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {dependent.relationship === DependentRelationship.CHILD ? 'Filho(a)' : 
+                                       dependent.relationship === DependentRelationship.STEPCHILD ? 'Enteado(a)' :
+                                       dependent.relationship === DependentRelationship.FOSTER_CHILD ? 'Filho(a) adotivo(a)' :
+                                       dependent.relationship === DependentRelationship.LEGAL_WARD ? 'Tutelado(a)' : 'Outro'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      <div className="flex items-center space-x-1">
+                                        {dependent.is_student && (
+                                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                            Estudante
+                                          </span>
+                                        )}
+                                        {dependent.has_disability && (
+                                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            PCD
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                      <div className="flex justify-end space-x-2">
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm"
+                                          onClick={() => handleEditDependentStart(index)}
+                                        >
+                                          Editar
+                                        </Button>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm"
+                                          onClick={() => handleRemoveDependent(index)}
+                                        >
+                                          Remover
+                                        </Button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="w-auto self-end"
+                          onClick={() => {
+                            console.log("Botão clicado");
+                            setCurrentDependent(undefined);
+                            setEditingIndex(null);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          Adicionar Dependente
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <Button type="button" variant="outline" onClick={prevTab}>
+                      Voltar
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? "Cadastrando..." : "Cadastrar Funcionário"}
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+      
+      {/* Diálogo para adicionar/editar dependentes */}
+      <DependentDialog
+        employeeId=""
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleAddDependent}
+        currentDependent={currentDependent}
+        isSubmitting={isLoading}
+      />
+    </>
   )
 }
 
