@@ -19,8 +19,12 @@ export class AuthService {
    * @returns Resultado da autenticação
    */
   static async signIn(data: LoginFormData): Promise<AuthResult> {
+    console.log("[AUTH_SERVICE] Iniciando processo de login para:", data.email)
+    
     try {
       const supabase = await createClient()
+      
+      console.log("[AUTH_SERVICE] Cliente Supabase criado, tentando login")
       
       const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: data.email,
@@ -28,7 +32,15 @@ export class AuthService {
       })
       
       if (error) {
+        console.error("[AUTH_SERVICE] Erro no login:", {
+          code: error.code,
+          message: error.message,
+          status: error.status
+        })
+        
         if (error.message === "Email not confirmed" || error.code === "email_not_confirmed") {
+          console.log("[AUTH_SERVICE] Email não confirmado, retornando status específico")
+          
           return {
             success: false,
             emailNotConfirmed: true,
@@ -39,6 +51,12 @@ export class AuthService {
         throw error
       }
       
+      console.log("[AUTH_SERVICE] Login bem-sucedido:", {
+        temUser: !!authData.user,
+        temSession: !!authData.session,
+        userId: authData.user?.id
+      })
+      
       return {
         success: true,
         message: "Login realizado com sucesso.",
@@ -46,7 +64,7 @@ export class AuthService {
         session: authData.session,
       }
     } catch (error) {
-      console.error("Erro ao fazer login:", error)
+      console.error("[AUTH_SERVICE] Exceção no processo de login:", error)
       
       // Tratamento de erros específicos
       if (error instanceof Error) {
@@ -54,6 +72,13 @@ export class AuthService {
           return {
             success: false,
             message: "Email ou senha incorretos.",
+          }
+        }
+        
+        if (error.message.includes("network") || error.message.includes("fetch")) {
+          return {
+            success: false,
+            message: "Erro de conexão com o servidor. Verifique sua internet.",
           }
         }
       }

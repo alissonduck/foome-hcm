@@ -35,6 +35,8 @@ export interface AuthResult {
   user?: any
   session?: any
   emailNotConfirmed?: boolean
+  usingFallback?: boolean
+  simulatedResponse?: boolean
 }
 
 // Dados do usuário autenticado
