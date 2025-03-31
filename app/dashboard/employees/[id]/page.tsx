@@ -8,7 +8,8 @@ import { getCurrentCompany } from "@/lib/auth-utils-server"
 
 // Importe o componente de histórico de cargos
 import { EmployeeRoleHistory } from "@/components/roles/employee-role-history"
-import { Tabs, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import MovimentacoesPage from "./movimentacoes/page"
 
 /**
  * Página de detalhes do funcionário
@@ -88,14 +89,36 @@ export default async function EmployeeDetailsPage(props: { params: Promise<{ id:
     .order("created_at", { ascending: false })
 
   return (
-    <EmployeeDetails
-      employee={employee}
-      documents={documents || []}
-      timeOffs={timeOffs || []}
-      onboardingTasks={onboardingTasks || []}
-      isAdmin={currentEmployee.is_admin}
-      currentUserId={company.userId}
-    />
+    <div className="space-y-4">
+      <EmployeeDetails
+        employee={employee}
+        documents={documents || []}
+        timeOffs={timeOffs || []}
+        onboardingTasks={onboardingTasks || []}
+        isAdmin={currentEmployee.is_admin}
+        currentUserId={company.userId}
+      />
+
+      <Tabs defaultValue="dados" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="dados">Dados</TabsTrigger>
+          <TabsTrigger value="documentos">Documentos</TabsTrigger>
+          <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dados">
+          {/* ... existing code ... */}
+        </TabsContent>
+
+        <TabsContent value="documentos">
+          {/* ... existing code ... */}
+        </TabsContent>
+
+        <TabsContent value="movimentacoes">
+          <MovimentacoesPage params={params} />
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }
 

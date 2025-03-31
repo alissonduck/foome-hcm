@@ -99,7 +99,7 @@ export default function LoginForm() {
         </Button>
       </form>
       <div className="mt-6 text-center text-sm">
-        Não tem uma conta?{" "}
+        não tem uma conta?{" "}
         <Link href="/register" className="text-primary font-medium hover:underline">
           Crie agora
         </Link>

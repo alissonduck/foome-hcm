@@ -23,7 +23,7 @@ export default async function LoginPage() {
 
     // Se estiver autenticado, redireciona para o dashboard
     if (user) {
-      redirect("/dashboard")
+      return redirect("/dashboard")
     }
 
     // Se não estiver autenticado, exibe o formulário de login
