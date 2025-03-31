@@ -39,6 +39,62 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_dependents: {
+        Row: {
+          birth_certificate_number: string | null
+          birth_date: string
+          cpf: string | null
+          created_at: string | null
+          employee_id: string
+          full_name: string
+          gender: string
+          has_disability: boolean | null
+          id: string
+          is_student: boolean | null
+          notes: string | null
+          relationship: string
+          updated_at: string | null
+        }
+        Insert: {
+          birth_certificate_number?: string | null
+          birth_date: string
+          cpf?: string | null
+          created_at?: string | null
+          employee_id: string
+          full_name: string
+          gender: string
+          has_disability?: boolean | null
+          id?: string
+          is_student?: boolean | null
+          notes?: string | null
+          relationship: string
+          updated_at?: string | null
+        }
+        Update: {
+          birth_certificate_number?: string | null
+          birth_date?: string
+          cpf?: string | null
+          created_at?: string | null
+          employee_id?: string
+          full_name?: string
+          gender?: string
+          has_disability?: boolean | null
+          id?: string
+          is_student?: boolean | null
+          notes?: string | null
+          relationship?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_dependents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_documents: {
         Row: {
           created_at: string | null

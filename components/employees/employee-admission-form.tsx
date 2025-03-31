@@ -17,8 +17,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
-import { ContractType, MaritalStatus, EducationLevel } from "@/lib/types"
+import { ContractType, MaritalStatus, EducationLevel } from "@/lib/types/index"
 import { numbersOnly } from "@/lib/utils/formatters"
+import { 
+  EmployeeDependentInsert, 
+  DependentGender, 
+  DependentRelationship 
+} from "@/lib/types/documents"
+import { DependentManagement } from "@/components/dependents/dependent-management"
+import { DependentFormValues } from "@/lib/schemas/dependent-schema"
 
 /**
  * Props para o componente EmployeeAdmissionForm
@@ -29,121 +36,99 @@ interface EmployeeAdmissionFormProps {
 }
 
 /**
- * Schema de validação para o formulário de admissão
+ * Esquema de validação para o formulário
  */
-const formSchema = z
-  .object({
-    // Dados pessoais
-    fullName: z.string().min(3, {
-      message: "O nome completo deve ter pelo menos 3 caracteres.",
-    }),
-    email: z.string().email({
-      message: "Digite um e-mail válido.",
-    }),
-    phone: z.string().min(10, {
-      message: "Digite um telefone válido.",
-    }),
-    cpf: z.string().min(11, {
-      message: "Digite um CPF válido.",
-    }),
-    rg: z.string().min(8, {
-      message: "Digite um RG válido.",
-    }),
-    maritalStatus: z.string(),
-    educationLevel: z.string(),
-    dependents: z.string().optional(),
+const formSchema = z.object({
+  // Dados pessoais
+  fullName: z.string().min(3, {
+    message: "O nome deve ter pelo menos 3 caracteres.",
+  }),
+  email: z.string().email({
+    message: "E-mail inválido.",
+  }),
+  phone: z.string().min(8, {
+    message: "Telefone inválido.",
+  }),
+  cpf: z.string().min(11, {
+    message: "CPF inválido.",
+  }),
+  rg: z.string().min(8, {
+    message: "RG inválido.",
+  }),
+  maritalStatus: z.nativeEnum(MaritalStatus),
+  educationLevel: z.nativeEnum(EducationLevel),
 
-    // Dados profissionais
-    position: z.string().min(2, {
-      message: "Digite um cargo válido.",
-    }),
-    department: z.string().min(2, {
-      message: "Digite um departamento válido.",
-    }),
-    contractType: z.string(),
-    hireDate: z.string(),
+  // Dados profissionais
+  position: z.string().min(2, {
+    message: "Cargo inválido.",
+  }),
+  department: z.string().min(2, {
+    message: "Departamento inválido.",
+  }),
+  contractType: z.nativeEnum(ContractType),
+  hireDate: z.string({
+    required_error: "Data de admissão é obrigatória.",
+  }),
 
-    // Dados específicos CLT
-    pis: z.string().optional(),
-    ctps: z.string().optional(),
+  // Campos condicionais - preenchidos apenas para CLT
+  pis: z.string().optional(),
+  ctps: z.string().optional(),
 
-    // Dados específicos PJ
-    cnpj: z.string().optional(),
-    companyName: z.string().optional(),
-    serviceDescription: z.string().optional(),
+  // Campos condicionais - preenchidos apenas para PJ
+  cnpj: z.string().optional(),
+  companyName: z.string().optional(),
+  serviceDescription: z.string().optional(),
 
-    // Endereço
-    street: z.string().min(3, {
-      message: "Digite um endereço válido.",
-    }),
-    number: z.string().min(1, {
-      message: "Digite um número válido.",
-    }),
-    complement: z.string().optional(),
-    neighborhood: z.string().min(2, {
-      message: "Digite um bairro válido.",
-    }),
-    city: z.string().min(2, {
-      message: "Digite uma cidade válida.",
-    }),
-    state: z.string().min(2, {
-      message: "Digite um estado válido.",
-    }),
-    zipCode: z.string().min(8, {
-      message: "Digite um CEP válido.",
-    }),
+  // Endereço
+  street: z.string({
+    required_error: "Rua é obrigatória.",
+  }),
+  number: z.string({
+    required_error: "Número é obrigatório.",
+  }),
+  complement: z.string().optional(),
+  neighborhood: z.string({
+    required_error: "Bairro é obrigatório.",
+  }),
+  city: z.string({
+    required_error: "Cidade é obrigatória.",
+  }),
+  state: z.string({
+    required_error: "Estado é obrigatório.",
+  }),
+  zipCode: z.string({
+    required_error: "CEP é obrigatório.",
+  }),
 
-    // Dados bancários
-    bankName: z.string().min(2, {
-      message: "Digite um banco válido.",
-    }),
-    accountType: z.string(),
-    agency: z.string().min(2, {
-      message: "Digite uma agência válida.",
-    }),
-    account: z.string().min(5, {
-      message: "Digite uma conta válida.",
-    }),
-    pixKey: z.string().optional(),
+  // Dados bancários
+  bankName: z.string({
+    required_error: "Nome do banco é obrigatório.",
+  }),
+  accountType: z.string({
+    required_error: "Tipo de conta é obrigatório.",
+  }),
+  agency: z.string({
+    required_error: "Agência é obrigatória.",
+  }),
+  account: z.string({
+    required_error: "Conta é obrigatória.",
+  }),
+  pixKey: z.string().optional(),
 
-    // Contato de emergência
-    emergencyName: z.string().min(3, {
-      message: "Digite um nome válido.",
-    }),
-    emergencyRelationship: z.string().min(2, {
-      message: "Digite um relacionamento válido.",
-    }),
-    emergencyPhone: z.string().min(10, {
-      message: "Digite um telefone válido.",
-    }),
+  // Dados de emergência
+  emergencyName: z.string({
+    required_error: "Nome do contato de emergência é obrigatório.",
+  }),
+  emergencyRelationship: z.string({
+    required_error: "Relação do contato de emergência é obrigatória.",
+  }),
+  emergencyPhone: z.string({
+    required_error: "Telefone do contato de emergência é obrigatório.",
+  }),
 
-    // Novo campo de remuneração
-    salary: z.string().optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.contractType === ContractType.CLT) {
-        return !!data.pis && !!data.ctps
-      }
-      return true
-    },
-    {
-      message: "PIS e CTPS são obrigatórios para contratação CLT",
-      path: ["pis"],
-    },
-  )
-  .refine(
-    (data) => {
-      if (data.contractType === ContractType.PJ) {
-        return !!data.cnpj && !!data.companyName && !!data.serviceDescription
-      }
-      return true
-    },
-    {
-      message: "CNPJ, Nome da Empresa e Descrição do Serviço são obrigatórios para contratação PJ",
-      path: ["cnpj"],
-    },
-  )
+  // Campo de salário
+  salary: z.string().optional(),
+})
 
 /**
  * Componente de formulário de admissão de funcionário
@@ -154,9 +139,52 @@ const formSchema = z
 export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdmissionFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("personal")
+  const [dependents, setDependents] = useState<EmployeeDependentInsert[]>([])
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
+
+  // Função para adicionar um dependente temporário
+  const handleAddDependent = (values: DependentFormValues & { employee_id?: string }) => {
+    // Converte para o formato correto
+    const newDependent: EmployeeDependentInsert = {
+      ...values,
+      employee_id: "", // Será definido depois que o funcionário for criado
+    };
+    
+    setDependents([...dependents, newDependent]);
+    toast({
+      title: "Dependente adicionado",
+      description: "O dependente foi adicionado temporariamente e será salvo junto com o funcionário."
+    });
+  }
+  
+  // Função para atualizar um dependente temporário
+  const handleUpdateDependent = (index: number, values: DependentFormValues & { employee_id?: string }) => {
+    const updatedDependents = [...dependents];
+    updatedDependents[index] = {
+      ...values,
+      employee_id: "", // Será definido depois que o funcionário for criado
+    };
+    
+    setDependents(updatedDependents);
+    toast({
+      title: "Dependente atualizado",
+      description: "As informações do dependente foram atualizadas."
+    });
+  }
+  
+  // Função para remover um dependente temporário
+  const handleRemoveDependent = (index: number) => {
+    const updatedDependents = [...dependents];
+    updatedDependents.splice(index, 1);
+    
+    setDependents(updatedDependents);
+    toast({
+      title: "Dependente removido",
+      description: "O dependente foi removido da lista."
+    });
+  }
 
   // Configuração do formulário
   const form = useForm<z.infer<typeof formSchema>>({
@@ -169,11 +197,10 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
       rg: "",
       maritalStatus: MaritalStatus.SINGLE,
       educationLevel: EducationLevel.HIGH_SCHOOL,
-      dependents: "",
       position: "",
       department: "",
       contractType: ContractType.CLT,
-      hireDate: new Date().toISOString().split("T")[0],
+      hireDate: "",
       pis: "",
       ctps: "",
       cnpj: "",
@@ -206,6 +233,13 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
     try {
       setIsLoading(true)
 
+      // Captura os dependentes da state
+      const dependentsToSave = dependents.map(dependent => ({
+        ...dependent,
+        // Certifica-se que o employee_id será definido após o funcionário ser criado
+        employee_id: "",
+      }));
+
       // Prepara os dados para inserção
       const employeeData = {
         company_id: companyId,
@@ -221,7 +255,6 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
         rg: values.rg,
         marital_status: values.maritalStatus,
         education_level: values.educationLevel,
-        dependents: values.dependents,
 
         // Dados específicos por tipo de contrato
         pis: values.contractType === ContractType.CLT ? values.pis : null,
@@ -266,6 +299,25 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
         throw new Error(error.message)
       }
 
+      // Se tiver dependentes, salva-os
+      if (dependentsToSave.length > 0) {
+        // Atualiza o employee_id de cada dependente
+        const dependentsWithEmployeeId = dependentsToSave.map(dependent => ({
+          ...dependent,
+          employee_id: data.id,
+        }));
+
+        // Insere os dependentes
+        const { error: dependentsError } = await supabase
+          .from("employee_dependents")
+          .insert(dependentsWithEmployeeId);
+
+        if (dependentsError) {
+          console.error("Erro ao salvar dependentes:", dependentsError);
+          // Continua mesmo com erro nos dependentes, mas loga o erro
+        }
+      }
+
       // Exibe mensagem de sucesso
       toast({
         title: "Funcionário admitido com sucesso",
@@ -297,6 +349,8 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
       setActiveTab("address")
     } else if (activeTab === "address") {
       setActiveTab("financial")
+    } else if (activeTab === "financial") {
+      setActiveTab("dependents")
     }
   }
 
@@ -310,7 +364,27 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
       setActiveTab("professional")
     } else if (activeTab === "financial") {
       setActiveTab("address")
+    } else if (activeTab === "dependents") {
+      setActiveTab("financial")
     }
+  }
+
+  // Na função que adiciona dependente de teste (botão "Adicionar Dependente Teste")
+  const handleAddTestDependent = () => {
+    const testDependent = {
+      full_name: 'Filho Teste',
+      birth_date: '2020-01-01',
+      relationship: DependentRelationship.CHILD,
+      gender: DependentGender.MALE,
+      has_disability: false,
+      is_student: true
+    }
+    
+    handleAddDependent(testDependent)
+    toast({
+      title: "Dependente adicionado",
+      description: "Dependente de teste adicionado com sucesso."
+    })
   }
 
   return (
@@ -319,11 +393,12 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="personal">Dados Pessoais</TabsTrigger>
                 <TabsTrigger value="professional">Dados Profissionais</TabsTrigger>
                 <TabsTrigger value="address">Endereço</TabsTrigger>
                 <TabsTrigger value="financial">Dados Financeiros</TabsTrigger>
+                <TabsTrigger value="dependents">Dependentes</TabsTrigger>
               </TabsList>
 
               {/* Aba de Dados Pessoais */}
@@ -465,20 +540,6 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                             <SelectItem value={EducationLevel.DOCTORATE}>Doutorado</SelectItem>
                           </SelectContent>
                         </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="dependents"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Dependentes</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Número de dependentes" {...field} />
-                        </FormControl>
-                        <FormDescription>Informe o número de dependentes para IR</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -949,6 +1010,61 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                 </div>
 
                 <div className="flex justify-between pt-4">
+                  <Button type="button" variant="outline" onClick={prevTab}>
+                    Voltar
+                  </Button>
+                  <Button type="button" onClick={nextTab}>
+                    Próximo
+                  </Button>
+                </div>
+              </TabsContent>
+
+              {/* Nova aba de Dependentes */}
+              <TabsContent value="dependents" className="space-y-4 pt-4">
+                <div className="flex flex-col space-y-4">
+                  <div className="border rounded-md p-4">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Adicione dependentes (filhos) do funcionário. Estes dados são importantes para benefícios, imposto de renda e registros legais.
+                    </p>
+                    
+                    {/* Componente personalizado para gerenciar dependentes */}
+                    <div className="flex flex-col space-y-4">
+                      {dependents.length === 0 ? (
+                        <div className="text-center py-6 text-muted-foreground">
+                          Nenhum dependente adicionado para este funcionário.
+                        </div>
+                      ) : (
+                        <div className="border rounded-md p-2">
+                          <ul className="divide-y">
+                            {dependents.map((dependent, index) => (
+                              <li key={index} className="py-2 px-3 flex justify-between items-center">
+                                <span className="font-medium">{dependent.full_name}</span>
+                                <div className="flex space-x-2">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => handleRemoveDependent(index)}
+                                  >
+                                    Remover
+                                  </Button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      <Button 
+                        variant="outline" 
+                        onClick={handleAddTestDependent}
+                      >
+                        Adicionar Dependente Teste
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between">
                   <Button type="button" variant="outline" onClick={prevTab}>
                     Voltar
                   </Button>
