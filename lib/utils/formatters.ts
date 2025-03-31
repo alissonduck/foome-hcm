@@ -127,26 +127,48 @@ export function currencyToNumber(value: string): number {
 }
 
 /**
- * Formata um RG (XX.XXX.XXX-X)
+ * Formata um RG (XX.XXX.XXX-X ou XX.XXX.XXX-XX)
  * @param value RG a ser formatado
  * @returns RG formatado
  */
 export function formatRG(value: string): string {
-  const numbers = numbersOnly(value).slice(0, 9);
+  // Remove caracteres não numéricos
+  const numbers = numbersOnly(value).slice(0, 10);
   
-  if (numbers.length <= 2) {
+  // Se o número for muito curto, retorna como está
+  if (numbers.length <= 1) {
     return numbers;
   }
   
-  if (numbers.length <= 5) {
-    return `${numbers.slice(0, 2)}.${numbers.slice(2)}`;
+  // Formato do RG é diferente dependendo do tamanho:
+  // - Para 8 dígitos: X.XXX.XXX-X
+  // - Para 9 dígitos: XX.XXX.XXX-X
+  // - Para 10 dígitos: XX.XXX.XXX-XX
+  
+  // Ajusta o formato dependendo da quantidade de dígitos
+  if (numbers.length === 8) {
+    return `${numbers.slice(0, 1)}.${numbers.slice(1, 4)}.${numbers.slice(4, 7)}-${numbers.slice(7)}`;
   }
   
-  if (numbers.length <= 8) {
-    return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5)}`;
+  if (numbers.length === 9) {
+    return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}-${numbers.slice(8)}`;
   }
   
-  return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}-${numbers.slice(8)}`;
+  if (numbers.length === 10) {
+    return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}-${numbers.slice(8, 10)}`;
+  }
+  
+  // Para valores com menos dígitos, formata de forma parcial
+  if (numbers.length <= 4) {
+    return `${numbers.slice(0, 1)}.${numbers.slice(1)}`;
+  }
+  
+  if (numbers.length <= 7) {
+    return `${numbers.slice(0, 1)}.${numbers.slice(1, 4)}.${numbers.slice(4)}`;
+  }
+  
+  // Fallback para outros tamanhos (não deve ocorrer com a lógica acima)
+  return numbers;
 }
 
 /**

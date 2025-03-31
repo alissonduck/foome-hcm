@@ -46,7 +46,7 @@ const formSchema = z
     cpf: z.string().min(11, {
       message: "Digite um CPF válido.",
     }),
-    rg: z.string().min(7, {
+    rg: z.string().min(8, {
       message: "Digite um RG válido.",
     }),
     maritalStatus: z.string(),
@@ -407,7 +407,7 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                         <FormControl>
                           <FormattedInput 
                             formatter="rg" 
-                            placeholder="12.345.678-9" 
+                            placeholder="09.295.014-0" 
                             {...field} 
                             onValueChange={(raw) => {
                               form.setValue("rg", raw, { shouldValidate: true });

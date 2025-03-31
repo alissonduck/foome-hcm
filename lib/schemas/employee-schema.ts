@@ -50,7 +50,9 @@ export const employeeCreateSchema = z.object({
   cpf: z.string().min(11, { 
     message: "CPF deve ter 11 dígitos" 
   }).optional(),
-  rg: z.string().optional(),
+  rg: z.string().min(8, { 
+    message: "RG deve ter pelo menos 8 dígitos" 
+  }).optional(),
   pis: z.string().optional(),
   ctps: z.string().optional(),
   cnpj: z.string().min(14, { 

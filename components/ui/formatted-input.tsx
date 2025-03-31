@@ -14,7 +14,7 @@ export type FormatterType =
   | "phone" 
   | "cellphone" 
   | "currency" 
-  | "rg" 
+  | "rg"  // RG pode ter 8, 9 ou 10 dígitos
   | "cep" 
   | "date"
 
