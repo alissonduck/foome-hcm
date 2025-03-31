@@ -1,69 +1,63 @@
 /**
  * Página de onboarding de funcionários
  */
-import { createClient } from "@/lib/supabase/server"
-import OnboardingManagement from "@/components/onboarding/onboarding-management"
+import { Suspense } from "react"
 import { PageHeader } from "@/components/page-header"
+import OnboardingManagement from "@/components/onboarding/onboarding-management"
+import { Skeleton } from "@/components/ui/skeleton"
 import { getCurrentCompany } from "@/lib/auth-utils-server"
-import { onboardingService } from "@/lib/services/onboarding-service"
+import { getOnboardings, getTasks, getEmployees, getCurrentEmployee } from "@/server/actions/onboarding-actions"
 
 /**
- * Página de onboarding de funcionários
- * @returns Componente de onboarding de funcionários
+ * Página de Onboarding
+ * Lista as tarefas de onboarding da empresa e permite gerenciá-las
  */
 export default async function OnboardingPage() {
-  const supabase = await createClient()
-  
-  // Obtém a empresa atual
   const company = await getCurrentCompany()
   
   if (!company) {
-    return <div className="p-8 text-center">Empresa não encontrada ou usuário não autenticado</div>
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <h1 className="text-2xl font-bold">Acesso não autorizado</h1>
+        <p className="text-muted-foreground">
+          Você precisa estar logado para acessar esta página.
+        </p>
+      </div>
+    )
   }
 
-  // Busca os dados do funcionário
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("id, company_id, is_admin")
-    .eq("user_id", company.userId)
-    .single()
-    
-  if (!employee) {
-    return <div className="p-8 text-center">Dados do funcionário não encontrados</div>
-  }
-
-  // Busca todos os funcionários da empresa para o admin
-  const { data: employees } = await supabase
-    .from("employees")
-    .select("id, full_name")
-    .eq("company_id", employee.company_id)
-    .order("full_name")
-
-  // Busca as tarefas de onboarding da empresa
-  const tasks = await onboardingService.getTasks(employee.company_id)
-
-  // Busca o onboarding dos funcionários
-  const onboardings = await onboardingService.getOnboardings(
-    employee.company_id,
-    employee.is_admin || false,
-    employee.id
-  )
-
+  // Obter os dados do funcionário atual
+  const currentEmployee = await getCurrentEmployee()
+  
+  // Carregar tarefas de onboarding e onboardings existentes
+  const tasks = await getTasks()
+  const onboardings = await getOnboardings()
+  
+  // Carregar lista de funcionários para seleção (se for admin)
+  const employees = company.isAdmin ? await getEmployees() : []
+  
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-8">
       <PageHeader
-        title="Onboarding de Funcionários"
-        description="Gerencie o processo de onboarding dos funcionários"
+        title="Onboarding"
+        description="Gerencie as tarefas de onboarding da sua empresa."
       />
-
-      <OnboardingManagement
-        onboardings={onboardings || []}
-        tasks={tasks || []}
-        employees={employees || []}
-        currentEmployeeId={employee.id}
-        companyId={employee.company_id}
-        isAdmin={employee.is_admin || false}
-      />
+      
+      <Suspense fallback={
+        <div className="space-y-4">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      }>
+        <OnboardingManagement 
+          onboardings={onboardings}
+          tasks={tasks}
+          employees={employees}
+          currentEmployeeId={currentEmployee?.id}
+          companyId={company.id}
+          isAdmin={company.isAdmin}
+        />
+      </Suspense>
     </div>
   )
 }

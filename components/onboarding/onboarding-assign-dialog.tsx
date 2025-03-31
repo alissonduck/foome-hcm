@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -25,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/components/ui/use-toast"
 import { ListChecks } from "lucide-react"
+import { assignTasks } from "@/server/actions/onboarding-actions"
 
 /**
  * Props para o componente OnboardingAssignDialog
@@ -87,7 +87,6 @@ export default function OnboardingAssignDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = createClient()
 
   // Configuração do formulário
   const form = useForm<z.infer<typeof formSchema>>({
@@ -133,11 +132,11 @@ export default function OnboardingAssignDialog({
         }
       })
 
-      // Insere as tarefas de onboarding
-      const { error } = await supabase.from("employee_onboarding").insert(onboardingData)
+      // Usa o server action para atribuir as tarefas
+      const result = await assignTasks(onboardingData)
 
-      if (error) {
-        throw error
+      if (!result.success) {
+        throw new Error(result.error)
       }
 
       // Exibe mensagem de sucesso

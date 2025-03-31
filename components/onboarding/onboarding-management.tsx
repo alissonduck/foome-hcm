@@ -5,7 +5,6 @@
  */
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +18,7 @@ import { ListChecks, Search, Filter, CheckCircle, XCircle, Plus, Settings, Clipb
 import OnboardingTaskDialog from "./onboarding-task-dialog"
 import OnboardingAssignDialog from "./onboarding-assign-dialog"
 import OnboardingDetailsDialog from "./onboarding-details-dialog"
+import { updateOnboardingStatus, deleteTask } from "@/server/actions/onboarding-actions"
 
 /**
  * Props para o componente OnboardingManagement
@@ -61,7 +61,6 @@ export default function OnboardingManagement({
   const [searchQuery, setSearchQuery] = useState<string>("")
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = createClient()
 
   /**
    * Filtra os onboardings com base nos filtros selecionados
@@ -114,17 +113,10 @@ export default function OnboardingManagement({
    */
   const handleCompleteTask = async (onboardingId: string) => {
     try {
-      const { error } = await supabase
-        .from("employee_onboarding")
-        .update({
-          status: "completed",
-          completed_by: currentEmployeeId,
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", onboardingId)
-
-      if (error) {
-        throw error
+      const result = await updateOnboardingStatus(onboardingId, "completed")
+      
+      if (!result.success) {
+        throw new Error(result.error)
       }
 
       toast({
@@ -148,26 +140,10 @@ export default function OnboardingManagement({
    */
   const handleDeleteTask = async (taskId: string) => {
     try {
-      // Verifica se a tarefa está sendo usada em algum onboarding
-      const { data: usedTasks, error: checkError } = await supabase
-        .from("employee_onboarding")
-        .select("id")
-        .eq("task_id", taskId)
-        .limit(1)
-
-      if (checkError) {
-        throw checkError
-      }
-
-      if (usedTasks && usedTasks.length > 0) {
-        throw new Error("Esta tarefa está sendo usada em um ou mais onboardings e não pode ser excluída.")
-      }
-
-      // Exclui a tarefa
-      const { error } = await supabase.from("onboarding_tasks").delete().eq("id", taskId)
-
-      if (error) {
-        throw error
+      const result = await deleteTask(taskId)
+      
+      if (!result.success) {
+        throw new Error(result.error)
       }
 
       toast({

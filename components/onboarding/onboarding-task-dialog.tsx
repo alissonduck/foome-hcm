@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -25,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { Settings } from "lucide-react"
+import { createTask, updateTask } from "@/server/actions/onboarding-actions"
 
 /**
  * Props para o componente OnboardingTaskDialog
@@ -77,7 +77,6 @@ export default function OnboardingTaskDialog({ open, onOpenChange, task, company
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = createClient()
 
   // Configuração do formulário
   const form = useForm<z.infer<typeof formSchema>>({
@@ -131,12 +130,14 @@ export default function OnboardingTaskDialog({ open, onOpenChange, task, company
         company_id: companyId,
       }
 
+      let result;
+
       if (task) {
         // Atualiza a tarefa existente
-        const { error } = await supabase.from("onboarding_tasks").update(taskData).eq("id", task.id)
+        result = await updateTask(task.id, taskData);
 
-        if (error) {
-          throw error
+        if (!result.success) {
+          throw new Error(result.error);
         }
 
         toast({
@@ -145,10 +146,10 @@ export default function OnboardingTaskDialog({ open, onOpenChange, task, company
         })
       } else {
         // Cria uma nova tarefa
-        const { error } = await supabase.from("onboarding_tasks").insert(taskData)
+        result = await createTask(taskData);
 
-        if (error) {
-          throw error
+        if (!result.success) {
+          throw new Error(result.error);
         }
 
         toast({
