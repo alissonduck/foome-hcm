@@ -21,7 +21,7 @@ export async function getCurrentCompany() {
     // Busca os dados do funcionário logado
     const { data: employee } = await supabase
       .from("employees")
-      .select("company_id, is_admin")
+      .select("id, company_id, is_admin")
       .eq("user_id", user.id)
       .single()
 
@@ -44,6 +44,7 @@ export async function getCurrentCompany() {
       ...company,
       isAdmin: employee.is_admin,
       userId: user.id,
+      employeeId: employee.id,
     }
   } catch (error) {
     console.error("Erro ao obter empresa atual:", error)

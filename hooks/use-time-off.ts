@@ -102,7 +102,8 @@ export function useTimeOff() {
         )
         
         if (!response.ok) {
-          throw new Error("Erro ao buscar solicitações")
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Erro ao buscar solicitações")
         }
         
         return response.json()
@@ -122,7 +123,8 @@ export function useTimeOff() {
         const response = await fetch(`/api/time-off/${timeOffId}`)
         
         if (!response.ok) {
-          throw new Error("Erro ao buscar solicitação")
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Erro ao buscar solicitação")
         }
         
         return response.json()
@@ -154,8 +156,8 @@ export function useTimeOff() {
         })
 
         if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || "Erro ao criar solicitação")
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Erro ao criar solicitação")
         }
 
         return response.json()
@@ -190,14 +192,13 @@ export function useTimeOff() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            status: data.status,
-            approved_by: data.approvedBy
+            status: data.status
           }),
         })
 
         if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || "Erro ao atualizar status")
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Erro ao atualizar status")
         }
 
         return response.json()
@@ -234,8 +235,8 @@ export function useTimeOff() {
         })
 
         if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || "Erro ao excluir solicitação")
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Erro ao excluir solicitação")
         }
 
         return response.json()

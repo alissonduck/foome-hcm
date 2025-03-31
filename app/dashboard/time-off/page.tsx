@@ -1,12 +1,10 @@
 /**
  * Página de gestão de férias e ausências
  */
-import { createClient } from "@/lib/supabase/server"
 import TimeOffManagement from "@/components/time-off/time-off-management"
-import { TimeOffService } from "@/lib/services/time-off-service"
-import { getCurrentCompany } from "@/lib/auth-utils-server"
-import { isAdmin } from "@/lib/permissions"
 import { PageHeader } from "@/components/page-header"
+import { getCurrentCompany } from "@/lib/auth-utils-server"
+import { getTimeOffs, getEmployees } from "@/server/actions/time-off-actions"
 
 /**
  * Página de gestão de férias e ausências
@@ -31,43 +29,12 @@ export default async function TimeOffPage() {
       )
     }
 
-    // Verifica se o usuário é administrador
-    const supabase = await createClient()
-    const currentUser = await isAdmin(supabase, company.userId)
-
-    // Busca os dados do funcionário
-    const { data: employee } = await supabase
-      .from("employees")
-      .select("id, company_id")
-      .eq("user_id", company.userId)
-      .single()
-
-    if (!employee) {
-      return (
-        <div className="space-y-6">
-          <PageHeader
-            title="Férias e Ausências"
-            description="Gerencie as férias e ausências dos funcionários"
-          />
-          <div className="p-8 text-center border rounded-md bg-yellow-50 text-yellow-600">
-            Funcionário não encontrado.
-          </div>
-        </div>
-      )
-    }
-
-    // Busca todos os funcionários da empresa para o admin
-    const { data: employees } = await supabase
-      .from("employees")
-      .select("id, full_name")
-      .eq("company_id", employee.company_id)
-      .order("full_name")
-
-    // Busca as solicitações de férias e ausências usando o service
-    const timeOffs = await TimeOffService.getTimeOffs(
-      currentUser.isAdmin ? null : employee.id, 
-      employee.company_id
-    )
+    // Busca os dados usando as server actions
+    const [timeOffs, employees] = await Promise.all([
+      // Se admin, busca todos. Se não, busca só do funcionário atual
+      getTimeOffs(company.isAdmin ? null : company.employeeId),
+      getEmployees()
+    ])
 
     return (
       <div className="space-y-6">
@@ -79,8 +46,8 @@ export default async function TimeOffPage() {
         <TimeOffManagement
           timeOffs={timeOffs || []}
           employees={employees || []}
-          currentEmployeeId={employee.id}
-          isAdmin={currentUser.isAdmin}
+          currentEmployeeId={company.employeeId || ""}
+          isAdmin={company.isAdmin || false}
         />
       </div>
     )

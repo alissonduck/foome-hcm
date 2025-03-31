@@ -5,7 +5,6 @@
  */
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,6 +16,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { CalendarPlus, Search, Filter, CheckCircle, XCircle, Calendar } from "lucide-react"
 import TimeOffRequestDialog from "./time-off-request-dialog"
 import TimeOffDetailsDialog from "./time-off-details-dialog"
+import { updateTimeOffStatus, deleteTimeOff } from "@/server/actions/time-off-actions"
 
 /**
  * Props para o componente TimeOffManagement
@@ -46,7 +46,6 @@ export default function TimeOffManagement({ timeOffs, employees, currentEmployee
   const [searchQuery, setSearchQuery] = useState<string>("")
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = createClient()
 
   /**
    * Filtra as solicitações com base nos filtros selecionados
@@ -95,31 +94,7 @@ export default function TimeOffManagement({ timeOffs, employees, currentEmployee
    */
   const handleApproveTimeOff = async (timeOffId: string) => {
     try {
-      const { error } = await supabase
-        .from("time_off")
-        .update({
-          status: "approved",
-          approved_by: currentEmployeeId,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", timeOffId)
-
-      if (error) {
-        throw error
-      }
-
-      // Atualiza o status do funcionário se for férias
-      const timeOff = timeOffs.find((t) => t.id === timeOffId)
-      if (timeOff && timeOff.type === "vacation") {
-        const { error: updateError } = await supabase
-          .from("employees")
-          .update({ status: "vacation" })
-          .eq("id", timeOff.employee_id)
-
-        if (updateError) {
-          throw updateError
-        }
-      }
+      await updateTimeOffStatus(timeOffId, "approved")
 
       toast({
         title: "Solicitação aprovada",
@@ -142,19 +117,8 @@ export default function TimeOffManagement({ timeOffs, employees, currentEmployee
    */
   const handleRejectTimeOff = async (timeOffId: string) => {
     try {
-      const { error } = await supabase
-        .from("time_off")
-        .update({
-          status: "rejected",
-          approved_by: currentEmployeeId,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", timeOffId)
-
-      if (error) {
-        throw error
-      }
-
+      await updateTimeOffStatus(timeOffId, "rejected")
+      
       toast({
         title: "Solicitação rejeitada",
         description: "A solicitação foi rejeitada com sucesso.",

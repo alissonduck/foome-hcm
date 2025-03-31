@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -24,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { CalendarPlus } from "lucide-react"
+import { createTimeOff } from "@/server/actions/time-off-actions"
 
 /**
  * Props para o componente TimeOffRequestDialog
@@ -101,7 +101,6 @@ export default function TimeOffRequestDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = createClient()
 
   // Configuração do formulário
   const form = useForm<z.infer<typeof formSchema>>({
@@ -140,20 +139,15 @@ export default function TimeOffRequestDialog({
       // Calcula o número de dias
       const totalDays = calculateDays(values.startDate, values.endDate)
 
-      // Cria a solicitação
-      const { error } = await supabase.from("time_off").insert({
+      // Cria a solicitação usando a server action
+      await createTimeOff({
         employee_id: values.employeeId,
         type: values.type,
-        status: "pending",
-        reason: values.reason,
         start_date: values.startDate,
         end_date: values.endDate,
-        total_days: totalDays,
+        reason: values.reason,
+        total_days: totalDays
       })
-
-      if (error) {
-        throw error
-      }
 
       // Exibe mensagem de sucesso
       toast({
