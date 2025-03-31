@@ -15,8 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useDocuments } from "@/hooks/use-documents"
-import { EmployeeDocument, DocumentWithEmployee, DocumentStatus } from "@/lib/types/documents"
+import { DocumentWithEmployee, DocumentStatus } from "@/lib/types/documents"
+import { DocumentActionsClient } from "./document"
 
 /**
  * Props para o componente DocumentViewDialog
@@ -44,29 +44,43 @@ export default function DocumentViewDialog({
 }: DocumentViewDialogProps) {
   const router = useRouter()
   const [fileUrl, setFileUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const { translateStatus, useUpdateDocumentStatusMutation, useDeleteDocumentMutation } = useDocuments()
+  const [loading, setLoading] = useState(false)
   
-  const statusUpdateMutation = useUpdateDocumentStatusMutation()
-  const deleteMutation = useDeleteDocumentMutation()
+  // Utiliza o cliente de ações para documentos
+  const documentActions = document?.id 
+    ? DocumentActionsClient({ documentId: document.id }) 
+    : null
+
+  /**
+   * Função para traduzir status do documento
+   */
+  function translateStatus(status: string): string {
+    const statusMap: Record<string, string> = {
+      pending: "Pendente",
+      approved: "Aprovado",
+      rejected: "Rejeitado",
+    }
+    return statusMap[status] || "Desconhecido"
+  }
 
   // Função para baixar o documento
   async function downloadDocument() {
     try {
-      if (!document || !document.id) {
-        throw new Error("Documento inválido")
+      if (!document || !document.id || !document.file_path || !documentActions) {
+        throw new Error("Documento inválido ou não possui arquivo")
       }
       
       setLoading(true)
       
-      // Gera URL para download do documento
-      const { data, error } = await fetch(`/api/documents/${document.id}/download`)
-        .then(res => res.json())
+      // Gera URL para download do documento usando server action
+      const url = await documentActions.handleGetSignedUrl(document.file_path)
       
-      if (error) throw new Error(error.message)
+      if (!url) {
+        throw new Error("Não foi possível gerar o link para o documento")
+      }
       
       // Abre em uma nova aba
-      window.open(data.url, '_blank')
+      window.open(url, '_blank')
     } catch (error) {
       console.error("Erro ao baixar documento:", error)
     } finally {
@@ -79,26 +93,22 @@ export default function DocumentViewDialog({
    * @param status Novo status do documento
    */
   async function handleStatusChange(status: DocumentStatus) {
-    if (!document || !document.id) return
+    if (!document || !document.id || !documentActions) return
     
-    await statusUpdateMutation.mutateAsync({
-      documentId: document.id,
-      status
-    })
-    
-    router.refresh()
+    await documentActions.handleUpdateStatus(status)
   }
 
   /**
    * Função para lidar com a exclusão do documento
    */
   async function handleDelete() {
-    if (!document || !document.id) return
+    if (!document || !document.id || !documentActions) return
     
-    await deleteMutation.mutateAsync(document.id)
+    const success = await documentActions.handleDelete()
     
-    onOpenChange(false)
-    router.refresh()
+    if (success) {
+      onOpenChange(false)
+    }
   }
 
   // Retorna o ícone de acordo com o status do documento
@@ -141,6 +151,8 @@ export default function DocumentViewDialog({
     )
   }
 
+  const isActionLoading = documentActions?.isLoading || false
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
@@ -179,7 +191,7 @@ export default function DocumentViewDialog({
             <Button
               variant="outline"
               onClick={downloadDocument}
-              disabled={loading || statusUpdateMutation.isPending || deleteMutation.isPending || !document.id}
+              disabled={loading || isActionLoading || !document.id || !document.file_path}
             >
               {loading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -195,7 +207,7 @@ export default function DocumentViewDialog({
                 variant="default"
                 className="bg-green-600 hover:bg-green-700"
                 onClick={() => handleStatusChange("approved")}
-                disabled={statusUpdateMutation.isPending}
+                disabled={isActionLoading}
               >
                 <Check className="mr-2 h-4 w-4" />
                 Aprovar
@@ -203,7 +215,7 @@ export default function DocumentViewDialog({
               <Button
                 variant="destructive"
                 onClick={() => handleStatusChange("rejected")}
-                disabled={statusUpdateMutation.isPending}
+                disabled={isActionLoading}
               >
                 <X className="mr-2 h-4 w-4" />
                 Rejeitar
@@ -217,9 +229,9 @@ export default function DocumentViewDialog({
             variant="destructive"
             size="sm"
             onClick={handleDelete}
-            disabled={deleteMutation.isPending}
+            disabled={isActionLoading}
           >
-            {deleteMutation.isPending ? "Excluindo..." : "Excluir Documento"}
+            {isActionLoading ? "Excluindo..." : "Excluir Documento"}
           </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar

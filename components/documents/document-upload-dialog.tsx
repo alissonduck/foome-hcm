@@ -6,6 +6,7 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { FileUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,10 +20,10 @@ import {
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useDocuments } from "@/hooks/use-documents"
+import { useToast } from "@/components/ui/use-toast"
+import { uploadDocumentAction } from "@/app/dashboard/documents/actions"
 import { documentUploadSchema, DOCUMENT_TYPES } from "@/lib/schemas/document-schema"
 import type { DocumentUploadFormValues } from "@/lib/schemas/document-schema"
-import { z } from "zod"
 
 /**
  * Props para o componente DocumentUploadDialog
@@ -52,8 +53,8 @@ export default function DocumentUploadDialog({
   isAdmin,
 }: DocumentUploadDialogProps) {
   const router = useRouter()
-  const { useUploadDocumentMutation } = useDocuments()
-  const uploadMutation = useUploadDocumentMutation()
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false)
 
   // Configuração do formulário
   const form = useForm<DocumentUploadFormValues>({
@@ -71,15 +72,55 @@ export default function DocumentUploadDialog({
    * @param values Valores do formulário
    */
   async function onSubmit(values: DocumentUploadFormValues) {
-    await uploadMutation.mutateAsync({
-      ...values,
-      employeeId: values.employeeId || currentEmployeeId,
-    })
+    if (!values.file || values.file.length === 0) {
+      toast({
+        title: "Erro",
+        description: "Selecione um arquivo para upload",
+        variant: "destructive",
+      })
+      return
+    }
     
-    // Fecha o diálogo e atualiza a página
-    onOpenChange(false)
-    form.reset()
-    router.refresh()
+    try {
+      setIsLoading(true)
+      
+      // Criar FormData para envio
+      const formData = new FormData()
+      formData.append("name", values.name)
+      formData.append("type", values.type)
+      formData.append("employeeId", values.employeeId || currentEmployeeId)
+      
+      if (values.expirationDate) {
+        formData.append("expirationDate", values.expirationDate)
+      }
+      
+      formData.append("file", values.file[0])
+      
+      // Enviar usando server action
+      const result = await uploadDocumentAction(formData)
+      
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+      
+      toast({
+        title: "Documento enviado",
+        description: "O documento foi enviado com sucesso e está pendente de aprovação.",
+      })
+      
+      // Fecha o diálogo e atualiza a página
+      onOpenChange(false)
+      form.reset()
+      router.refresh()
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao enviar o documento.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -196,8 +237,8 @@ export default function DocumentUploadDialog({
             />
 
             <DialogFooter>
-              <Button type="submit" disabled={uploadMutation.isPending}>
-                {uploadMutation.isPending ? "Enviando..." : (
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Enviando..." : (
                   <>
                     <FileUp className="mr-2 h-4 w-4" />
                     Enviar Documento

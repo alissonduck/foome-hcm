@@ -76,7 +76,13 @@ export function useAuth() {
         throw error
       }
       
-      console.log("[FALLBACK] Login direto bem-sucedido")
+      console.log("[FALLBACK] Login direto bem-sucedido, redirecionando...")
+      
+      // Redireciona para o dashboard após login bem-sucedido via Supabase direto
+      setTimeout(() => {
+        router.refresh()
+        router.push('/dashboard')
+      }, 100)
       
       return {
         success: true,

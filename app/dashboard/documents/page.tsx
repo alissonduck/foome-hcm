@@ -1,75 +1,57 @@
-/**
- * Página de gestão de documentos
- */
-import { createClient } from "@/lib/supabase/server"
-import { documentService } from "@/lib/services/document-service"
-import { PageHeader } from "@/components/page-header"
+import { Metadata } from "next"
+import { getDocuments, getCurrentEmployee, getEmployees } from "@/server/actions/document-actions"
 import DocumentManagement from "@/components/documents/document-management"
-import { getCurrentCompany } from "@/lib/auth-utils-server"
-import { redirect } from "next/navigation"
+import { notFound } from 'next/navigation'
+
+export const metadata: Metadata = {
+  title: "Documentos",
+  description: "Gerenciamento de documentos dos funcionários",
+}
 
 /**
- * Página de gestão de documentos
- * @returns Componente de gestão de documentos
+ * Página de documentos
+ * Permite gerenciar os documentos dos funcionários
  */
 export default async function DocumentsPage() {
-  const supabase = await createClient()
-  const company = await getCurrentCompany()
-
-  if (!company) {
-    return <div className="p-8 text-center">Empresa não encontrada ou usuário não autenticado</div>
-  }
-
-  // Busca os dados do funcionário
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("id, company_id, is_admin")
-    .eq("user_id", company.userId)
-    .single()
-
-  if (!employee || !employee.company_id) {
-    return <div className="p-8 text-center">Dados do funcionário não encontrados ou incompletos</div>
-  }
-
-  // Busca todos os funcionários da empresa para o admin
-  const { data: employees } = await supabase
-    .from("employees")
-    .select("id, full_name")
-    .eq("company_id", employee.company_id)
-    .order("full_name")
-
   try {
-    // Busca os documentos usando o novo serviço
-    const documents = await documentService.getDocuments(
-      employee.is_admin ? null : employee.id, 
-      employee.company_id
-    )
+    // Busca os dados necessários
+    const [documents, employee, employees] = await Promise.all([
+      getDocuments(),
+      getCurrentEmployee(),
+      getEmployees()
+    ])
+    
+    if (!employee) {
+      return notFound()
+    }
 
     return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Gestão de Documentos"
-          description="Gerencie os documentos dos funcionários da empresa"
-        />
+      <div className="flex-1 space-y-4 p-5 pt-6">
+        <div className="flex flex-col space-y-2">
+          <h2 className="text-2xl font-bold tracking-tight">Documentos</h2>
+          <p className="text-muted-foreground">
+            Gerencie os documentos dos funcionários da empresa
+          </p>
+        </div>
 
-        <DocumentManagement
-          documents={documents || []}
-          employees={employees || []}
+        <DocumentManagement 
+          documents={documents} 
+          employees={employees} 
           currentEmployeeId={employee.id}
-          isAdmin={employee.is_admin || false}
+          isAdmin={!!employee.is_admin}
         />
       </div>
     )
   } catch (error) {
     console.error("Erro ao carregar documentos:", error)
+    
     return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Gestão de Documentos"
-          description="Gerencie os documentos dos funcionários da empresa"
-        />
-        <div className="p-8 text-center border rounded-md bg-red-50 text-red-600">
-          Erro ao carregar documentos. Por favor, tente novamente mais tarde.
+      <div className="flex-1 space-y-4 p-5 pt-6">
+        <div className="flex flex-col space-y-2">
+          <h2 className="text-2xl font-bold tracking-tight">Documentos</h2>
+          <p className="text-muted-foreground text-red-500">
+            Ocorreu um erro ao carregar os dados. Por favor, tente novamente mais tarde.
+          </p>
         </div>
       </div>
     )
