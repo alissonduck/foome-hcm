@@ -40,6 +40,12 @@ interface EmployeeDetailsProps {
   onboardingTasks: any[]
   isAdmin: boolean
   currentUserId: string | undefined
+  extraTabs?: Array<{
+    id: string
+    label: string
+    content: React.ReactNode
+    icon?: React.ReactNode
+  }>
 }
 
 /**
@@ -50,6 +56,7 @@ interface EmployeeDetailsProps {
  * @param onboardingTasks Tarefas de onboarding do funcionário
  * @param isAdmin Indica se o usuário é administrador
  * @param currentUserId ID do usuário atual
+ * @param extraTabs Abas adicionais para o componente
  * @returns Componente de detalhes do funcionário
  */
 export default function EmployeeDetails({
@@ -59,6 +66,7 @@ export default function EmployeeDetails({
   onboardingTasks,
   isAdmin,
   currentUserId,
+  extraTabs = [],
 }: EmployeeDetailsProps) {
   const [activeTab, setActiveTab] = useState("personal")
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -187,7 +195,7 @@ export default function EmployeeDetails({
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-5 mb-6">
+            <TabsList className="grid mb-6" style={{ gridTemplateColumns: `repeat(${5 + extraTabs.length}, minmax(0, 1fr))` }}>
               <TabsTrigger value="personal" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">dados pessoais</span>
@@ -217,6 +225,12 @@ export default function EmployeeDetails({
                   {onboardingTasks.length}
                 </Badge>
               </TabsTrigger>
+              {extraTabs.map((tab) => (
+                <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
+                  {tab.icon}
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </TabsTrigger>
+              ))}
             </TabsList>
 
             <TabsContent value="personal">
@@ -238,6 +252,12 @@ export default function EmployeeDetails({
             <TabsContent value="onboarding">
               <EmployeeOnboarding onboardingTasks={onboardingTasks} employeeId={employee.id} isAdmin={isAdmin} />
             </TabsContent>
+            
+            {extraTabs.map((tab) => (
+              <TabsContent key={tab.id} value={tab.id}>
+                {tab.content}
+              </TabsContent>
+            ))}
           </Tabs>
         </CardContent>
       </Card>

@@ -5,11 +5,8 @@ import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import EmployeeDetails from "@/components/employees/employee-details"
 import { getCurrentCompany } from "@/lib/auth-utils-server"
-
-// Importe o componente de histórico de cargos
-import { EmployeeRoleHistory } from "@/components/roles/employee-role-history"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import MovimentacoesPage from "./movimentacoes/page"
+import { GitBranch } from "lucide-react"
 
 /**
  * Página de detalhes do funcionário
@@ -97,27 +94,15 @@ export default async function EmployeeDetailsPage(props: { params: Promise<{ id:
         onboardingTasks={onboardingTasks || []}
         isAdmin={currentEmployee.is_admin}
         currentUserId={company.userId}
+        extraTabs={[
+          {
+            id: "movimentacoes",
+            label: "Movimentações",
+            content: <MovimentacoesPage params={params} />,
+            icon: <GitBranch className="h-4 w-4" />
+          }
+        ]}
       />
-
-      <Tabs defaultValue="dados" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="dados">Dados</TabsTrigger>
-          <TabsTrigger value="documentos">Documentos</TabsTrigger>
-          <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="dados">
-          {/* ... existing code ... */}
-        </TabsContent>
-
-        <TabsContent value="documentos">
-          {/* ... existing code ... */}
-        </TabsContent>
-
-        <TabsContent value="movimentacoes">
-          <MovimentacoesPage params={params} />
-        </TabsContent>
-      </Tabs>
     </div>
   )
 }
