@@ -45,7 +45,8 @@ Desenvolva cada funcionalidade separando os arquivos e suas respectivas responsa
 
 - @app
 - @api
-- @components
+- @components - Client Components ("use client")
+- @server - Server Components ("use server" - Server Actions)
 - @hooks
 - @lib/services
 - @lib/types
