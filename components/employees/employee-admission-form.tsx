@@ -12,11 +12,13 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { FormattedInput } from "@/components/ui/formatted-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { ContractType, MaritalStatus, EducationLevel } from "@/lib/types"
+import { numbersOnly } from "@/lib/utils/formatters"
 
 /**
  * Props para o componente EmployeeAdmissionForm
@@ -114,6 +116,9 @@ const formSchema = z
     emergencyPhone: z.string().min(10, {
       message: "Digite um telefone válido.",
     }),
+
+    // Novo campo de remuneração
+    salary: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -189,6 +194,7 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
       emergencyName: "",
       emergencyRelationship: "",
       emergencyPhone: "",
+      salary: "",
     },
   })
 
@@ -246,6 +252,9 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
           relationship: values.emergencyRelationship,
           phone: values.emergencyPhone,
         },
+
+        // Novo campo de remuneração
+        salary: values.salary,
 
         created_by: userId,
       }
@@ -356,7 +365,14 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                       <FormItem>
                         <FormLabel>Telefone</FormLabel>
                         <FormControl>
-                          <Input placeholder="(11) 98765-4321" {...field} />
+                          <FormattedInput 
+                            formatter="cellphone" 
+                            placeholder="(11) 98765-4321" 
+                            {...field} 
+                            onValueChange={(raw) => {
+                              form.setValue("phone", raw, { shouldValidate: true });
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -369,7 +385,14 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                       <FormItem>
                         <FormLabel>CPF</FormLabel>
                         <FormControl>
-                          <Input placeholder="123.456.789-00" {...field} />
+                          <FormattedInput 
+                            formatter="cpf" 
+                            placeholder="123.456.789-00" 
+                            {...field} 
+                            onValueChange={(raw) => {
+                              form.setValue("cpf", raw, { shouldValidate: true });
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -382,7 +405,14 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                       <FormItem>
                         <FormLabel>RG</FormLabel>
                         <FormControl>
-                          <Input placeholder="12.345.678-9" {...field} />
+                          <FormattedInput 
+                            formatter="rg" 
+                            placeholder="12.345.678-9" 
+                            {...field} 
+                            onValueChange={(raw) => {
+                              form.setValue("rg", raw, { shouldValidate: true });
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -539,7 +569,16 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                         <FormItem>
                           <FormLabel>PIS</FormLabel>
                           <FormControl>
-                            <Input placeholder="123.45678.90-1" {...field} />
+                            <Input 
+                              placeholder="123.45678.90-1" 
+                              {...field} 
+                              onChange={(e) => {
+                                // Mantém apenas números
+                                const value = numbersOnly(e.target.value);
+                                // Atualiza o campo com apenas números
+                                form.setValue("pis", value, { shouldValidate: true });
+                              }}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -552,7 +591,16 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                         <FormItem>
                           <FormLabel>CTPS</FormLabel>
                           <FormControl>
-                            <Input placeholder="12345/001" {...field} />
+                            <Input 
+                              placeholder="12345/001" 
+                              {...field} 
+                              onChange={(e) => {
+                                // Mantém apenas números e /
+                                const value = e.target.value.replace(/[^\d\/]/g, '');
+                                // Atualiza o campo
+                                field.onChange(value);
+                              }}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -571,7 +619,14 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                           <FormItem>
                             <FormLabel>CNPJ</FormLabel>
                             <FormControl>
-                              <Input placeholder="12.345.678/0001-90" {...field} />
+                              <FormattedInput 
+                                formatter="cnpj" 
+                                placeholder="12.345.678/0001-90" 
+                                {...field} 
+                                onValueChange={(raw) => {
+                                  form.setValue("cnpj", raw, { shouldValidate: true });
+                                }}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -713,7 +768,14 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                       <FormItem>
                         <FormLabel>CEP</FormLabel>
                         <FormControl>
-                          <Input placeholder="01310-100" {...field} />
+                          <FormattedInput 
+                            formatter="cep" 
+                            placeholder="01310-100" 
+                            {...field} 
+                            onValueChange={(raw) => {
+                              form.setValue("zipCode", raw, { shouldValidate: true });
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -792,7 +854,16 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                         <FormItem>
                           <FormLabel>Agência</FormLabel>
                           <FormControl>
-                            <Input placeholder="1234" {...field} />
+                            <Input 
+                              placeholder="1234" 
+                              {...field} 
+                              onChange={(e) => {
+                                // Mantém apenas números e -
+                                const value = e.target.value.replace(/[^\d-]/g, '');
+                                // Atualiza o campo
+                                field.onChange(value);
+                              }}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -805,7 +876,16 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                         <FormItem>
                           <FormLabel>Conta</FormLabel>
                           <FormControl>
-                            <Input placeholder="12345-6" {...field} />
+                            <Input 
+                              placeholder="12345-6" 
+                              {...field} 
+                              onChange={(e) => {
+                                // Mantém apenas números e -
+                                const value = e.target.value.replace(/[^\d-]/g, '');
+                                // Atualiza o campo
+                                field.onChange(value);
+                              }}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -851,9 +931,16 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                     name="emergencyPhone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Telefone</FormLabel>
+                        <FormLabel>Telefone de Emergência</FormLabel>
                         <FormControl>
-                          <Input placeholder="(11) 98765-4321" {...field} />
+                          <FormattedInput 
+                            formatter="cellphone" 
+                            placeholder="(11) 99999-9999" 
+                            {...field} 
+                            onValueChange={(raw) => {
+                              form.setValue("emergencyPhone", raw, { shouldValidate: true });
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

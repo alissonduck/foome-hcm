@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { EmployeeStatus } from "@/lib/types"
+import { FormattedInput } from "@/components/ui/formatted-input"
 
 /**
  * Props para o componente EmployeeEditDialog
@@ -200,7 +201,14 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange }: Emp
                       <FormItem>
                         <FormLabel>telefone</FormLabel>
                         <FormControl>
-                          <Input placeholder="(11) 98765-4321" {...field} />
+                          <FormattedInput 
+                            formatter="cellphone" 
+                            placeholder="(11) 99999-9999" 
+                            {...field} 
+                            onValueChange={(raw) => {
+                              form.setValue("phone", raw, { shouldValidate: true });
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
