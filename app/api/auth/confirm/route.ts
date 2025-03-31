@@ -1,57 +1,66 @@
 /**
  * API para confirmar email manualmente
+ * Implementa rota para confirmar email de usuário (para ambiente de desenvolvimento)
  */
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
-import { type NextRequest, NextResponse } from "next/server"
+
+import { NextRequest, NextResponse } from "next/server"
+import { AuthService } from "@/lib/services/auth-service"
+import { confirmEmailSchema } from "@/lib/schemas/auth-schema"
 
 /**
- * Rota para confirmar email manualmente
- * Esta rota deve ser usada apenas em ambiente de desenvolvimento ou teste
+ * POST - Confirma email manualmente
+ * 
+ * @param request Objeto de requisição com email e senha
+ * @returns Resposta com resultado da confirmação
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
-
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email e senha são obrigatórios" }, { status: 400 })
+    // Verifica se estamos em ambiente de desenvolvimento
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Esta rota está disponível apenas em ambiente de desenvolvimento" },
+        { status: 403 }
+      )
     }
 
-    // Cria o cliente Supabase
-    const supabase = createRouteHandlerClient({ cookies })
+    // Obtém os dados da requisição
+    const body = await request.json()
 
-    // Tenta fazer login diretamente
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    // Valida os dados
+    const validationResult = confirmEmailSchema.safeParse(body)
 
-    if (error && error.message === "Email not confirmed") {
-      // Tenta enviar um novo email de confirmação
-      const { error: resendError } = await supabase.auth.resend({
-        type: "signup",
-        email,
-      })
-
-      if (resendError) {
-        return NextResponse.json({ error: "Não foi possível enviar o email de confirmação" }, { status: 500 })
-      }
-
-      return NextResponse.json({
-        message: "Email de confirmação enviado",
-        needsConfirmation: true,
-      })
-    } else if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: "Dados inválidos", 
+          issues: validationResult.error.format() 
+        },
+        { status: 400 }
+      )
     }
 
-    return NextResponse.json({
-      message: "Login realizado com sucesso",
-      session: data.session,
+    // Tenta confirmar o email
+    const result = await AuthService.confirmEmailManually(
+      validationResult.data.email,
+      validationResult.data.password
+    )
+
+    // Retorna o resultado
+    return NextResponse.json(result, {
+      status: result.success ? 200 : (result.emailNotConfirmed ? 202 : 400)
     })
   } catch (error) {
-    console.error("Erro ao confirmar email:", error)
-    return NextResponse.json({ error: "Ocorreu um erro ao processar a solicitação" }, { status: 500 })
+    console.error("[AUTH_CONFIRM_EMAIL_ERROR]", error)
+    
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: "Erro ao confirmar email",
+        message: error instanceof Error ? error.message : "Ocorreu um erro ao processar a solicitação."
+      },
+      { status: 500 }
+    )
   }
 }
 

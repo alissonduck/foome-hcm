@@ -4,44 +4,28 @@
  * Formulário de login
  */
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { createClient } from "@/lib/supabase/client"
+import { loginSchema } from "@/lib/schemas/auth-schema"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { useToast } from "@/components/ui/use-toast"
-import { loginWithUnconfirmedEmail } from "@/lib/auth-helpers"
 import { Mail, Lock, Loader2 } from "lucide-react"
-
-/**
- * Schema de validação para o formulário de login
- */
-const formSchema = z.object({
-  email: z.string().email({
-    message: "Digite um e-mail válido.",
-  }),
-  password: z.string().min(6, {
-    message: "A senha deve ter pelo menos 6 caracteres.",
-  }),
-})
+import { useAuth } from "@/hooks/use-auth"
+import type { z } from "zod"
 
 /**
  * Componente de formulário de login
  * @returns Formulário de login
  */
 export default function LoginForm() {
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
-  const supabase = createClient()
+  const { useSignInMutation } = useAuth()
+  const signInMutation = useSignInMutation()
 
   // Configuração do formulário com React Hook Form e Zod
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
       password: "",
@@ -52,41 +36,11 @@ export default function LoginForm() {
    * Função para lidar com o envio do formulário
    * @param values Valores do formulário
    */
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      setIsLoading(true)
-
-      // Tenta fazer login com a função auxiliar
-      const result = await loginWithUnconfirmedEmail(values.email, values.password)
-
-      if (result.success) {
-        // Login bem-sucedido, redireciona para o dashboard
-        router.refresh()
-        router.push("/dashboard")
-      } else if (result.emailNotConfirmed) {
-        // Email não confirmado, exibe mensagem informativa
-        toast({
-          title: "Email não confirmado",
-          description: result.message,
-        })
-
-        // Para fins de desenvolvimento, podemos redirecionar para o dashboard mesmo assim
-        router.refresh()
-        router.push("/dashboard")
-      } else {
-        // Outro erro ocorreu
-        throw new Error(result.message)
-      }
-    } catch (error) {
-      // Exibe mensagem de erro
-      toast({
-        variant: "destructive",
-        title: "Erro ao fazer login",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao fazer login.",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+  async function onSubmit(values: z.infer<typeof loginSchema>) {
+    await signInMutation.mutateAsync({
+      email: values.email,
+      password: values.password,
+    })
   }
 
   return (
@@ -129,8 +83,12 @@ export default function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full h-11 mt-6 rounded-lg font-medium transition-all" disabled={isLoading}>
-          {isLoading ? (
+        <Button 
+          type="submit" 
+          className="w-full h-11 mt-6 rounded-lg font-medium transition-all" 
+          disabled={signInMutation.isPending}
+        >
+          {signInMutation.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Entrando...
@@ -143,7 +101,7 @@ export default function LoginForm() {
       <div className="mt-6 text-center text-sm">
         Não tem uma conta?{" "}
         <Link href="/register" className="text-primary font-medium hover:underline">
-          Cadastre-se
+          Crie agora
         </Link>
       </div>
     </Form>

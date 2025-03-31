@@ -2,7 +2,7 @@
  * Página de login
  */
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { AuthService } from "@/lib/services/auth-service"
 import LoginForm from "@/components/auth/login-form"
 import AuthLayout from "@/components/auth/auth-layout"
 
@@ -18,11 +18,8 @@ export const runtime = 'nodejs'
  */
 export default async function LoginPage() {
   try {
-    // Criar e aguardar o cliente Supabase
-    const supabase = await createClient()
-    
-    // Verificar se o usuário está autenticado usando método seguro
-    const { data: { user } } = await supabase.auth.getUser()
+    // Verifica se o usuário está autenticado
+    const user = await AuthService.getCurrentUser()
 
     // Se estiver autenticado, redireciona para o dashboard
     if (user) {
