@@ -25,6 +25,9 @@ Este software será comercializado com médias e grandes empresas, então atente
 - Sempre utilize o bun como gerenciador de pacotes. Não utilize npm, yarn ou pnpm. Utilize o comando "bun install" para instalar bibliotecas ou "bun run" para executar comandos.
 - Documente todos os arquivos do projeto, com comentários em cada uma das funções, métodos, classes e componentes presentes no arquivo.
 - Desenvolva o frontend de forma componentizada utilizando NextJS com React, Shadcn, Radix UI e TailwindCSS, com componentes pequenos e com responsabilidade única.
+- Obrigatoriamente use "Server Components"(RSC) quando houver necessidade de buscar dados, acessar recursos do servidor ou evitar sobrecarga desnecessária no cliente.
+- Obrigatoriamente use "Client Components" quando precisar de interatividade, manipulação de estado ou eventos dinâmicos.
+- Obrigatoriamente combine "Server Components"(RSC) com "Client Components" estrategicamente para maximizar a eficiência e a experiência do usuário.
 - Obrigatoriamente utilize o Supabase juntamente com Server Actions e API como backend desta aplicação.
 - Obrigatoriamente utilize SRP (Single Responsability Principle) em todos os arquivos criados.
 - Obrigatoriamente utilize DRY (Dont Repeat Yourself) em todos os arquivos criados.

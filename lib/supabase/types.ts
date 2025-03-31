@@ -149,6 +149,67 @@ export type Database = {
           },
         ]
       }
+      employee_roles: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          employee_id: string
+          end_date: string | null
+          id: string
+          is_current: boolean
+          notes: string | null
+          role_id: string
+          start_date: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          employee_id: string
+          end_date?: string | null
+          id?: string
+          is_current?: boolean
+          notes?: string | null
+          role_id: string
+          start_date?: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          employee_id?: string
+          end_date?: string | null
+          id?: string
+          is_current?: boolean
+          notes?: string | null
+          role_id?: string
+          start_date?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_roles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           address: Json | null
@@ -161,7 +222,6 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           ctps: string | null
-          department: string | null
           dependents: string | null
           education_level: string | null
           email: string
@@ -191,7 +251,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           ctps?: string | null
-          department?: string | null
           dependents?: string | null
           education_level?: string | null
           email: string
@@ -221,7 +280,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           ctps?: string | null
-          department?: string | null
           dependents?: string | null
           education_level?: string | null
           email?: string

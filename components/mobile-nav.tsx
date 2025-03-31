@@ -8,7 +8,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
 import {
   Menu,
   LayoutDashboard,
@@ -123,6 +123,7 @@ export function MobileNav({ isAdmin = false }: { isAdmin?: boolean }) {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0">
+        <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
         <div className="flex flex-col h-full">
           <div className="p-4 border-b">
             <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setOpen(false)}>
