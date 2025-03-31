@@ -48,23 +48,33 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
   const isCreatingRole = createMutation.isPending
   const isUpdatingRole = updateMutation.isPending
   
-  // Obtenção das equipes de forma correta
-  const { loadTeams, teams, loading: teamsLoading } = useTeams()
-  const [teamsLoaded, setTeamsLoaded] = useState(false)
+  // Estado para armazenar as equipes
+  const [teams, setTeams] = useState<TeamWithManager[]>([])
+  const [teamsLoading, setTeamsLoading] = useState(false)
   
   // Efeito para carregar as equipes ao montar o componente
   useEffect(() => {
-    async function loadTeamsData() {
-      if (!teamsLoaded && companyId) {
-        console.log("Carregando equipes para a empresa:", companyId)
-        await loadTeams(companyId)
-        setTeamsLoaded(true)
-        console.log("Equipes carregadas:", teams?.length || 0)
+    async function loadTeams() {
+      try {
+        setTeamsLoading(true)
+        // Chamar a server action via uma função de cliente
+        const response = await fetch("/api/teams")
+        
+        if (!response.ok) {
+          throw new Error("Falha ao carregar equipes")
+        }
+        
+        const teamsData = await response.json()
+        setTeams(teamsData)
+      } catch (error) {
+        console.error("Erro ao carregar equipes:", error)
+      } finally {
+        setTeamsLoading(false)
       }
     }
     
-    loadTeamsData()
-  }, [companyId, loadTeams, teamsLoaded, teams])
+    loadTeams()
+  }, [companyId])
 
   const [courses, setCourses] = useState<{ id?: string; name: string; is_required: boolean }[]>(
     initialData?.courses || [],

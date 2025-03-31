@@ -9,7 +9,7 @@ import { ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { RoleDetails } from "@/components/roles/role-details"
-import { RoleService } from "@/lib/services/role-service"
+import { getRoleWithDetails } from "@/server/actions/role-actions"
 
 interface RolePageProps {
   params: Promise<{
@@ -20,7 +20,7 @@ interface RolePageProps {
 export async function generateMetadata(props: RolePageProps): Promise<Metadata> {
   const params = await props.params;
   try {
-    const role = await RoleService.getRoleWithDetails(params.id)
+    const role = await getRoleWithDetails(params.id)
     return {
       title: `${role.title} | Cargos | Foome`,
       description: `Detalhes do cargo ${role.title}`,
@@ -36,7 +36,7 @@ export async function generateMetadata(props: RolePageProps): Promise<Metadata> 
 export default async function RolePage(props: RolePageProps) {
   const params = await props.params;
   try {
-    const role = await RoleService.getRoleWithDetails(params.id)
+    const role = await getRoleWithDetails(params.id)
 
     return (
       <div className="space-y-6">

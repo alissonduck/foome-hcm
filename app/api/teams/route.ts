@@ -9,6 +9,7 @@ import { TeamService } from "@/lib/services/team-service"
 import { teamCreateSchema } from "@/lib/schemas/team-schema"
 import { getCurrentCompany } from "@/lib/auth-utils-server"
 import { isAdmin } from "@/lib/permissions"
+import { getTeams } from "@/server/actions/team-actions"
 
 /**
  * Obtém todas as equipes da empresa atual
@@ -97,5 +98,19 @@ export async function POST(request: NextRequest) {
       { error: "Erro ao criar equipe" },
       { status: 500 }
     )
+  }
+}
+
+/**
+ * API endpoint para buscar equipes (GET)
+ * @returns Lista de equipes
+ */
+export async function GET_SERVER_ACTIONS() {
+  try {
+    const teams = await getTeams()
+    return NextResponse.json(teams)
+  } catch (error) {
+    console.error("Erro na API de equipes:", error)
+    return NextResponse.json({ error: "Erro ao buscar equipes" }, { status: 500 })
   }
 } 

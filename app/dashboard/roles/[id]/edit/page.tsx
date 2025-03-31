@@ -9,7 +9,8 @@ import { ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { RoleForm } from "@/components/roles/role-form"
-import { RoleService } from "@/lib/services/role-service"
+import { getRoleWithDetails } from "@/server/actions/role-actions"
+import { getCurrentCompany } from "@/lib/auth-utils-server"
 
 interface EditRolePageProps {
   params: Promise<{
@@ -20,7 +21,7 @@ interface EditRolePageProps {
 export async function generateMetadata(props: EditRolePageProps): Promise<Metadata> {
   const params = await props.params;
   try {
-    const role = await RoleService.getRoleWithDetails(params.id)
+    const role = await getRoleWithDetails(params.id)
     return {
       title: `Editar ${role.title} | Cargos | Foome`,
       description: `Edite as informações do cargo ${role.title}`,
@@ -35,8 +36,46 @@ export async function generateMetadata(props: EditRolePageProps): Promise<Metada
 
 export default async function EditRolePage(props: EditRolePageProps) {
   const params = await props.params;
+  
+  // Verifica autenticação e permissões
+  const company = await getCurrentCompany()
+  
+  if (!company) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <h1 className="text-2xl font-bold">Acesso não autorizado</h1>
+        <p className="text-muted-foreground">
+          Você precisa estar logado para acessar esta página.
+        </p>
+      </div>
+    )
+  }
+  
+  if (!company.isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <h1 className="text-2xl font-bold">Acesso restrito</h1>
+        <p className="text-muted-foreground">
+          Apenas administradores podem editar cargos.
+        </p>
+      </div>
+    )
+  }
+  
   try {
-    const role = await RoleService.getRoleWithDetails(params.id)
+    const role = await getRoleWithDetails(params.id)
+
+    // Verifica se o cargo pertence à empresa do usuário logado
+    if (role.company_id !== company.id) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full">
+          <h1 className="text-2xl font-bold">Acesso negado</h1>
+          <p className="text-muted-foreground">
+            Este cargo não pertence à sua empresa.
+          </p>
+        </div>
+      )
+    }
 
     return (
       <div className="space-y-6">

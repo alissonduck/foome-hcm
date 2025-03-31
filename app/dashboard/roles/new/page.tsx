@@ -25,6 +25,29 @@ interface NewRolePageProps {
 export default async function NewRolePage(props: NewRolePageProps) {
   const searchParams = await props.searchParams;
   const company = await getCurrentCompany()
+  
+  if (!company) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <h1 className="text-2xl font-bold">Acesso não autorizado</h1>
+        <p className="text-muted-foreground">
+          Você precisa estar logado para acessar esta página.
+        </p>
+      </div>
+    )
+  }
+  
+  if (!company.isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <h1 className="text-2xl font-bold">Acesso restrito</h1>
+        <p className="text-muted-foreground">
+          Apenas administradores podem criar novos cargos.
+        </p>
+      </div>
+    )
+  }
+  
   const companyId = searchParams.company || company.id
 
   if (!companyId) {
