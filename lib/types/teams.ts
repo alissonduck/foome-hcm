@@ -3,7 +3,7 @@
  * Define os tipos utilizados para gerenciar equipes e subequipes
  */
 
-import type { Database } from "./supabase"
+import type { Database } from "@/lib/supabase/types"
 
 // Tipo para equipe
 export type Team = Database["public"]["Tables"]["teams"]["Row"]
@@ -47,6 +47,7 @@ export interface SubteamWithManager extends Subteam {
 
 // Tipo para equipe com membros
 export interface TeamWithMembers extends TeamWithManager {
+  company_id: string;
   members: Array<{
     id: string
     full_name: string

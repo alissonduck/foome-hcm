@@ -1,14 +1,14 @@
 /**
- * API para gerenciamento de funcionário específico
- * Implementa endpoints RESTful para um item específico
- * @file app/api/employees/[id]/route.ts
+ * API para gerenciamento de documento específico
+ * Implementa endpoints RESTful para um documento específico
+ * @file app/api/documents/[id]/route.ts
  */
 
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { isAdmin, getCurrentCompany } from "@/lib/auth-utils-server"
-import { employeeService } from "@/lib/services/employee-service"
-import { employeeUpdateSchema } from "@/lib/schemas/employee-schema"
+import { documentService } from "@/lib/services/document-service"
+import { documentUpdateSchema } from "@/lib/schemas/document-schema"
 import { successResponse, errorResponse, HttpStatus, ErrorCodes } from "@/lib/utils/api-response"
 import { z } from "zod"
 
@@ -19,26 +19,20 @@ type RouteParams = {
 }
 
 // Schema para PATCH (atualização parcial)
-const employeePatchSchema = z.object({
-  full_name: z.string().min(3).optional(),
-  email: z.string().email().optional(),
-  position: z.string().optional(),
-  department: z.string().optional(),
-  phone: z.string().optional(),
-  status: z.enum(["active", "inactive", "on_leave"]).optional(),
-  contract_type: z.string().optional(),
-  hire_date: z.string().optional(),
-  birth_date: z.string().optional(),
-  notes: z.string().optional(),
-  updated_at: z.string().optional()
+const documentPatchSchema = z.object({
+  name: z.string().min(3).optional(),
+  type: z.string().optional(),
+  status: z.enum(["pending", "approved", "rejected"]).optional(),
+  expiration_date: z.string().nullable().optional(),
+  notes: z.string().nullable().optional()
 }).refine(data => Object.keys(data).length > 0, {
   message: "Pelo menos um campo deve ser fornecido para atualização parcial"
 })
 
 /**
- * Função auxiliar para validar acesso ao funcionário
+ * Função auxiliar para validar acesso ao documento
  */
-async function validateEmployeeAccess(employeeId: string, requireAdmin = false) {
+async function validateDocumentAccess(documentId: string, requireAdmin = false) {
   // Verifica autenticação e permissões
   const company = await getCurrentCompany()
   
@@ -64,27 +58,49 @@ async function validateEmployeeAccess(employeeId: string, requireAdmin = false) 
     }
   }
   
-  // Verifica se o funcionário existe
+  // Verifica se o documento existe
   const supabase = await createClient()
-  const { data: employee, error } = await supabase
-    .from("employees")
-    .select("id, company_id")
-    .eq("id", employeeId)
+  const { data, error } = await supabase
+    .from("employee_documents")
+    .select(`
+      id, 
+      employee_id,
+      employees!employee_id (
+        id,
+        company_id,
+        user_id
+      )
+    `)
+    .eq("id", documentId)
     .single()
   
-  if (error || !employee) {
+  if (error || !data) {
     return {
       success: false,
       error: {
-        message: "Funcionário não encontrado",
+        message: "Documento não encontrado",
         code: ErrorCodes.RESOURCE_NOT_FOUND
       },
       status: HttpStatus.NOT_FOUND
     }
   }
   
-  // Verifica se o funcionário pertence à empresa do usuário
-  if (employee.company_id !== company.id) {
+  // Verifica se o documento tem relação com funcionário
+  const document = data as any
+  
+  if (!document.employees || !document.employees.company_id) {
+    return {
+      success: false,
+      error: {
+        message: "Documento sem informações de acesso",
+        code: ErrorCodes.RESOURCE_NOT_FOUND
+      },
+      status: HttpStatus.NOT_FOUND
+    }
+  }
+  
+  // Verifica se o documento pertence à empresa do usuário
+  if (document.employees.company_id !== company.id) {
     return {
       success: false,
       error: {
@@ -95,24 +111,38 @@ async function validateEmployeeAccess(employeeId: string, requireAdmin = false) 
     }
   }
   
-  return { success: true, company }
+  // Verifica se o usuário tem acesso ao documento (é admin ou dono do documento)
+  const isOwnDocument = document.employees.user_id === company.userId
+  
+  if (!company.isAdmin && !isOwnDocument) {
+    return {
+      success: false,
+      error: {
+        message: "Sem permissão para acessar este documento",
+        code: ErrorCodes.AUTHORIZATION_ERROR
+      },
+      status: HttpStatus.FORBIDDEN
+    }
+  }
+  
+  return { success: true, company, document }
 }
 
 /**
- * GET - Obter funcionário específico
+ * GET - Obter documento específico
  * @param request Requisição
  * @param params Parâmetros da rota
- * @returns Resposta com o funcionário
+ * @returns Resposta com o documento
  */
 export async function GET(
   request: NextRequest,
   { params }: RouteParams
 ) {
   try {
-    const employeeId = params.id
+    const documentId = params.id
     
     // Valida acesso
-    const validation = await validateEmployeeAccess(employeeId)
+    const validation = await validateDocumentAccess(documentId)
     if (!validation.success) {
       return errorResponse({
         error: validation.error,
@@ -120,13 +150,13 @@ export async function GET(
       })
     }
     
-    // Obtém funcionário com detalhes
-    const employee = await employeeService.getEmployee(employeeId)
+    // Obtém documento com detalhes
+    const document = await documentService.getDocument(documentId)
     
-    if (!employee) {
+    if (!document) {
       return errorResponse({
         error: {
-          message: "Funcionário não encontrado",
+          message: "Documento não encontrado",
           code: ErrorCodes.RESOURCE_NOT_FOUND
         },
         status: HttpStatus.NOT_FOUND
@@ -134,15 +164,15 @@ export async function GET(
     }
     
     return successResponse({
-      data: employee,
-      message: "Funcionário encontrado com sucesso"
+      data: document,
+      message: "Documento encontrado com sucesso"
     })
   } catch (error) {
-    console.error("Erro ao buscar funcionário:", error)
+    console.error("Erro ao buscar documento:", error)
     
     return errorResponse({
       error: {
-        message: "Erro ao buscar funcionário",
+        message: "Erro ao buscar documento",
         details: error instanceof Error ? error.message : String(error),
         code: ErrorCodes.INTERNAL_ERROR
       },
@@ -152,20 +182,20 @@ export async function GET(
 }
 
 /**
- * PUT - Atualizar funcionário (substituição completa)
- * @param request Requisição com dados do funcionário
+ * PUT - Atualizar documento (substituição completa)
+ * @param request Requisição com dados do documento
  * @param params Parâmetros da rota
- * @returns Resposta com o funcionário atualizado
+ * @returns Resposta com o documento atualizado
  */
 export async function PUT(
   request: NextRequest,
   { params }: RouteParams
 ) {
   try {
-    const employeeId = params.id
+    const documentId = params.id
     
     // Valida acesso (requer admin)
-    const validation = await validateEmployeeAccess(employeeId, true)
+    const validation = await validateDocumentAccess(documentId, true)
     if (!validation.success) {
       return errorResponse({
         error: validation.error,
@@ -177,7 +207,7 @@ export async function PUT(
     const body = await request.json()
     
     // Valida dados com schema
-    const validationResult = employeeUpdateSchema.safeParse(body)
+    const validationResult = documentUpdateSchema.safeParse(body)
     
     if (!validationResult.success) {
       return errorResponse({
@@ -190,19 +220,19 @@ export async function PUT(
       })
     }
     
-    // Atualiza funcionário
-    const updatedEmployee = await employeeService.updateEmployee(employeeId, validationResult.data)
+    // Atualiza documento
+    const updatedDocument = await documentService.updateDocument(documentId, validationResult.data)
     
     return successResponse({
-      data: updatedEmployee,
-      message: "Funcionário atualizado com sucesso"
+      data: updatedDocument,
+      message: "Documento atualizado com sucesso"
     })
   } catch (error) {
-    console.error("Erro ao atualizar funcionário:", error)
+    console.error("Erro ao atualizar documento:", error)
     
     return errorResponse({
       error: {
-        message: "Erro ao atualizar funcionário",
+        message: "Erro ao atualizar documento",
         details: error instanceof Error ? error.message : String(error),
         code: ErrorCodes.INTERNAL_ERROR
       },
@@ -212,20 +242,20 @@ export async function PUT(
 }
 
 /**
- * PATCH - Atualizar funcionário parcialmente
- * @param request Requisição com dados parciais do funcionário
+ * PATCH - Atualizar documento parcialmente
+ * @param request Requisição com dados parciais do documento
  * @param params Parâmetros da rota
- * @returns Resposta com o funcionário atualizado
+ * @returns Resposta com o documento atualizado
  */
 export async function PATCH(
   request: NextRequest,
   { params }: RouteParams
 ) {
   try {
-    const employeeId = params.id
+    const documentId = params.id
     
     // Valida acesso (requer admin)
-    const validation = await validateEmployeeAccess(employeeId, true)
+    const validation = await validateDocumentAccess(documentId, true)
     if (!validation.success) {
       return errorResponse({
         error: validation.error,
@@ -237,7 +267,7 @@ export async function PATCH(
     const body = await request.json()
     
     // Valida dados com schema para PATCH
-    const validationResult = employeePatchSchema.safeParse(body)
+    const validationResult = documentPatchSchema.safeParse(body)
     
     if (!validationResult.success) {
       return errorResponse({
@@ -250,13 +280,13 @@ export async function PATCH(
       })
     }
     
-    // Busca o funcionário atual primeiro
-    const currentEmployee = await employeeService.getEmployee(employeeId)
+    // Busca o documento atual primeiro
+    const currentDocument = await documentService.getDocument(documentId)
     
-    if (!currentEmployee) {
+    if (!currentDocument) {
       return errorResponse({
         error: {
-          message: "Funcionário não encontrado",
+          message: "Documento não encontrado",
           code: ErrorCodes.RESOURCE_NOT_FOUND
         },
         status: HttpStatus.NOT_FOUND
@@ -265,24 +295,23 @@ export async function PATCH(
     
     // Mescla os dados atuais com as atualizações
     const updatedData = {
-      ...currentEmployee,
       ...validationResult.data,
       updated_at: new Date().toISOString()
     }
     
-    // Atualiza funcionário
-    const updatedEmployee = await employeeService.updateEmployee(employeeId, updatedData)
+    // Atualiza documento
+    const updatedDocument = await documentService.updateDocument(documentId, updatedData)
     
     return successResponse({
-      data: updatedEmployee,
-      message: "Funcionário atualizado parcialmente com sucesso"
+      data: updatedDocument,
+      message: "Documento atualizado parcialmente com sucesso"
     })
   } catch (error) {
-    console.error("Erro ao atualizar funcionário parcialmente:", error)
+    console.error("Erro ao atualizar documento parcialmente:", error)
     
     return errorResponse({
       error: {
-        message: "Erro ao atualizar funcionário parcialmente",
+        message: "Erro ao atualizar documento parcialmente",
         details: error instanceof Error ? error.message : String(error),
         code: ErrorCodes.INTERNAL_ERROR
       },
@@ -292,7 +321,7 @@ export async function PATCH(
 }
 
 /**
- * DELETE - Remover funcionário
+ * DELETE - Remover documento
  * @param request Requisição
  * @param params Parâmetros da rota
  * @returns Resposta de sucesso
@@ -302,10 +331,10 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
-    const employeeId = params.id
+    const documentId = params.id
     
-    // Valida acesso (requer admin)
-    const validation = await validateEmployeeAccess(employeeId, true)
+    // Valida acesso (só admin ou o próprio dono do documento pode excluir)
+    const validation = await validateDocumentAccess(documentId)
     if (!validation.success) {
       return errorResponse({
         error: validation.error,
@@ -313,19 +342,29 @@ export async function DELETE(
       })
     }
     
-    // Remove funcionário
-    await employeeService.deleteEmployee(employeeId)
+    // Remove documento
+    const success = await documentService.deleteDocument(documentId)
+    
+    if (!success) {
+      return errorResponse({
+        error: {
+          message: "Falha ao remover documento",
+          code: ErrorCodes.INTERNAL_ERROR
+        },
+        status: HttpStatus.INTERNAL_SERVER_ERROR
+      })
+    }
     
     return successResponse({
-      message: "Funcionário removido com sucesso",
+      message: "Documento removido com sucesso",
       status: HttpStatus.NO_CONTENT
     })
   } catch (error) {
-    console.error("Erro ao remover funcionário:", error)
+    console.error("Erro ao remover documento:", error)
     
     return errorResponse({
       error: {
-        message: "Erro ao remover funcionário",
+        message: "Erro ao remover documento",
         details: error instanceof Error ? error.message : String(error),
         code: ErrorCodes.INTERNAL_ERROR
       },

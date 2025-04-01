@@ -3,7 +3,7 @@
  * Define os tipos utilizados para gerenciar documentos
  */
 
-import type { Database } from "./supabase"
+import type { Database } from "@/lib/supabase/types"
 
 // Tipos básicos para documentos
 export type EmployeeDocument = Database["public"]["Tables"]["employee_documents"]["Row"]
@@ -12,6 +12,10 @@ export type EmployeeDocumentUpdate = Database["public"]["Tables"]["employee_docu
 
 // Tipo para documento com informações do funcionário
 export interface DocumentWithEmployee extends EmployeeDocument {
+  file_path: string;
+  file_name: string;
+  file_type: string;
+  file_size: number;
   employees?: {
     id: string
     full_name: string

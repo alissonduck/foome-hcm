@@ -110,6 +110,49 @@ export class documentService {
   }
   
   /**
+   * Verifica se um usuário tem acesso a um documento
+   * @param documentId ID do documento
+   * @param userId ID do usuário
+   * @param isAdmin Se o usuário é administrador
+   * @returns Verdadeiro se o usuário tem acesso
+   */
+  static async checkDocumentAccess(documentId: string, userId: string, isAdmin: boolean): Promise<boolean> {
+    try {
+      // Administradores sempre têm acesso
+      if (isAdmin) {
+        return true
+      }
+      
+      const supabase = await createClient()
+      
+      // Obtém o documento com o ID do funcionário
+      const { data: document, error: documentError } = await supabase
+        .from("employee_documents")
+        .select("employee_id")
+        .eq("id", documentId)
+        .single()
+      
+      if (documentError || !document) {
+        return false
+      }
+      
+      // Verifica se o usuário é o dono do documento
+      const { data: employee, error: employeeError } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("id", document.employee_id)
+        .single()
+      
+      // Se encontrou o funcionário, significa que o usuário é o dono do documento
+      return !employeeError && !!employee
+    } catch (error) {
+      console.error("Erro ao verificar acesso ao documento:", error)
+      return false
+    }
+  }
+  
+  /**
    * Cria um novo documento
    * @param document Dados do documento
    * @returns Documento criado

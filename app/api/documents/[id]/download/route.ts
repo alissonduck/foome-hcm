@@ -1,12 +1,14 @@
 /**
  * API para download de documentos
+ * Implementa endpoint para obter URL assinada para download de documento
  * @file app/api/documents/[id]/download/route.ts
  */
 
-import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
-import { isAuthenticated } from "@/lib/auth-utils-server"
-import { documentService } from "@/lib/services/document-service" 
+import { NextRequest } from "next/server"
+import { successResponse, errorResponse, HttpStatus, ErrorCodes } from "@/lib/utils/api-response"
+import { getSignedUrl } from "@/server/actions/document-actions"
+import { documentService } from "@/lib/services/document-service"
+import { getCurrentCompany } from "@/lib/auth-utils-server"
 
 type RouteParams = {
   params: {
@@ -23,92 +25,134 @@ type RouteParams = {
 export async function GET(
   request: NextRequest,
   { params }: RouteParams
-): Promise<NextResponse> {
+) {
   try {
     // Verifica autenticação
-    const authenticated = await isAuthenticated()
-    if (!authenticated) {
-      return NextResponse.json(
-        { error: { message: "Não autorizado" } },
-        { status: 401 }
-      )
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return errorResponse({
+        error: {
+          message: "Não autorizado",
+          code: ErrorCodes.AUTHENTICATION_ERROR
+        },
+        status: HttpStatus.UNAUTHORIZED
+      })
     }
 
     const documentId = params.id
     
-    // Busca o documento
-    const supabase = await createClient()
-    const document = await documentService.getDocument(documentId)
-    
-    if (!document) {
-      return NextResponse.json(
-        { error: { message: "Documento não encontrado" } },
-        { status: 404 }
-      )
+    // Busca o documento usando o serviço
+    try {
+      const document = await documentService.getDocument(documentId)
+      
+      // Verifica se o documento existe
+      if (!document || !document.file_path) {
+        return errorResponse({
+          error: {
+            message: "Documento ou arquivo não encontrado",
+            code: ErrorCodes.RESOURCE_NOT_FOUND
+          },
+          status: HttpStatus.NOT_FOUND
+        })
+      }
+      
+      // Verifica permissão (apenas admin ou dono do documento pode acessar)
+      const hasAccess = await documentService.checkDocumentAccess(documentId, company.userId, company.isAdmin)
+      
+      if (!hasAccess) {
+        return errorResponse({
+          error: {
+            message: "Acesso negado a este documento",
+            code: ErrorCodes.AUTHORIZATION_ERROR
+          },
+          status: HttpStatus.FORBIDDEN
+        })
+      }
+      
+      // Usa a server action para gerar a URL assinada
+      const response = await getSignedUrl(document.file_path, 60)
+      
+      if (!response.success) {
+        return errorResponse({
+          error: {
+            message: "Erro ao gerar URL de download",
+            details: response.error,
+            code: ErrorCodes.INTERNAL_ERROR
+          },
+          status: HttpStatus.INTERNAL_SERVER_ERROR
+        })
+      }
+      
+      return successResponse({
+        data: { url: response.data?.url },
+        message: "URL de download gerada com sucesso"
+      })
+    } catch (error) {
+      console.error("Erro ao processar documento:", error)
+      
+      return errorResponse({
+        error: {
+          message: "Erro ao processar solicitação de download",
+          details: error instanceof Error ? error.message : String(error),
+          code: ErrorCodes.INTERNAL_ERROR
+        },
+        status: HttpStatus.INTERNAL_SERVER_ERROR
+      })
     }
-    
-    // Obter usuário atual
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: { message: "Usuário não encontrado" } },
-        { status: 404 }
-      )
-    }
-    
-    // Verifica permissão (apenas admin ou dono do documento pode acessar)
-    const { data: employee } = await supabase
-      .from("employees")
-      .select("id, is_admin, company_id")
-      .eq("user_id", user.id)
-      .single()
-    
-    if (!employee) {
-      return NextResponse.json(
-        { error: { message: "Funcionário não encontrado" } },
-        { status: 404 }
-      )
-    }
-    
-    const isOwnDocument = document.employee_id === employee.id
-    const isAdmin = employee.is_admin
-    
-    if (!isOwnDocument && !isAdmin) {
-      return NextResponse.json(
-        { error: { message: "Acesso negado" } },
-        { status: 403 }
-      )
-    }
-    
-    // Verifica se o arquivo existe
-    if (!document.file_path) {
-      return NextResponse.json(
-        { error: { message: "Arquivo não encontrado" } },
-        { status: 404 }
-      )
-    }
-    
-    // Gera URL assinada para download
-    const { data, error } = await supabase
-      .storage
-      .from("documents")
-      .createSignedUrl(document.file_path, 60) // URL válida por 60 segundos
-    
-    if (error) {
-      return NextResponse.json(
-        { error: { message: error.message } },
-        { status: 500 }
-      )
-    }
-    
-    return NextResponse.json({ url: data.signedUrl })
   } catch (error) {
-    console.error("Erro ao obter documento:", error)
+    console.error("Erro ao processar solicitação de download:", error)
     
-    return NextResponse.json(
-      { error: { message: "Erro ao processar a solicitação" } },
-      { status: 500 }
-    )
+    return errorResponse({
+      error: {
+        message: "Erro ao processar solicitação de download",
+        details: error instanceof Error ? error.message : String(error),
+        code: ErrorCodes.INTERNAL_ERROR
+      },
+      status: HttpStatus.INTERNAL_SERVER_ERROR
+    })
   }
+}
+
+/**
+ * POST, PUT, PATCH, DELETE - Métodos não suportados
+ */
+export function POST() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado nesta rota. Use GET para obter URL de download.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+export function PUT() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado nesta rota. Use GET para obter URL de download.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+export function PATCH() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado nesta rota. Use GET para obter URL de download.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+export function DELETE() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado nesta rota. Use GET para obter URL de download.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
 } 

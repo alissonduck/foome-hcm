@@ -3,9 +3,10 @@
  * Implementa rota para autenticar um usuário com email e senha
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { AuthService } from "@/lib/services/auth-service"
 import { loginSchema } from "@/lib/schemas/auth-schema"
+import { successResponse, errorResponse, HttpStatus, ErrorCodes } from "@/lib/utils/api-response"
 
 /**
  * POST - Realiza login de usuário
@@ -31,19 +32,14 @@ export async function POST(request: NextRequest) {
     if (!validationResult.success) {
       console.log("[API_LOGIN] Falha na validação:", validationResult.error.format())
       
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: "Dados inválidos", 
-          issues: validationResult.error.format() 
+      return errorResponse({
+        error: {
+          message: "Dados inválidos",
+          details: validationResult.error.format(),
+          code: ErrorCodes.VALIDATION_ERROR
         },
-        { 
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      )
+        status: HttpStatus.UNPROCESSABLE_ENTITY
+      })
     }
 
     console.log("[API_LOGIN] Dados validados, tentando login")
@@ -62,49 +58,80 @@ export async function POST(request: NextRequest) {
 
     // Se o login falhou, retorna erro
     if (!result.success) {
-      return NextResponse.json(
-        result,
-        { 
-          status: result.emailNotConfirmed ? 400 : 401,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      )
+      return errorResponse({
+        error: {
+          message: result.message || "Falha na autenticação",
+          code: result.emailNotConfirmed 
+            ? ErrorCodes.VALIDATION_ERROR 
+            : ErrorCodes.AUTHENTICATION_ERROR
+        },
+        status: result.emailNotConfirmed 
+          ? HttpStatus.BAD_REQUEST 
+          : HttpStatus.UNAUTHORIZED
+      })
     }
 
     // Retorna sucesso
-    const response = NextResponse.json(
-      result,
-      { 
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    )
-    
-    console.log("[API_LOGIN] Resposta de sucesso enviada:", {
-      status: response.status,
-      headers: Object.fromEntries(response.headers.entries())
+    return successResponse({
+      data: {
+        user: result.user,
+        session: result.session
+      },
+      message: "Login realizado com sucesso"
     })
-    
-    return response
   } catch (error) {
     console.error("[API_LOGIN] Erro:", error)
     
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: "Erro ao fazer login",
-        message: error instanceof Error ? error.message : "Ocorreu um erro ao processar a solicitação."
+    return errorResponse({
+      error: {
+        message: "Erro ao fazer login",
+        details: error instanceof Error ? error.message : "Ocorreu um erro ao processar a solicitação.",
+        code: ErrorCodes.INTERNAL_ERROR
       },
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    )
+      status: HttpStatus.INTERNAL_SERVER_ERROR
+    })
   }
+}
+
+/**
+ * GET, PUT, PATCH, DELETE - Métodos não suportados
+ */
+export function GET() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para login.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+export function PUT() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para login.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+export function PATCH() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para login.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+export function DELETE() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para login.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
 } 
