@@ -9,6 +9,41 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      cities: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          phone_code: string | null
+          state_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          phone_code?: string | null
+          state_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          phone_code?: string | null
+          state_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cities_state_id_fkey"
+            columns: ["state_id"]
+            isOneToOne: false
+            referencedRelation: "states"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           cnpj: string
@@ -38,6 +73,107 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      countries: {
+        Row: {
+          abbreviation: string
+          created_at: string | null
+          id: string
+          name: string
+          phone_code: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          abbreviation: string
+          created_at?: string | null
+          id?: string
+          name: string
+          phone_code?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          abbreviation?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          phone_code?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      employee_addresses: {
+        Row: {
+          city_id: string
+          complement: string | null
+          country_id: string
+          created_at: string | null
+          employee_id: string
+          id: string
+          neighborhood: string
+          number: string
+          postal_code: string
+          state_id: string
+          street: string
+          updated_at: string | null
+        }
+        Insert: {
+          city_id: string
+          complement?: string | null
+          country_id: string
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          neighborhood: string
+          number: string
+          postal_code: string
+          state_id: string
+          street: string
+          updated_at?: string | null
+        }
+        Update: {
+          city_id?: string
+          complement?: string | null
+          country_id?: string
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          neighborhood?: string
+          number?: string
+          postal_code?: string
+          state_id?: string
+          street?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_addresses_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_addresses_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_addresses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_addresses_state_id_fkey"
+            columns: ["state_id"]
+            isOneToOne: false
+            referencedRelation: "states"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employee_dependents: {
         Row: {
@@ -723,6 +859,41 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      states: {
+        Row: {
+          abbreviation: string
+          country_id: string
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          abbreviation: string
+          country_id: string
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          abbreviation?: string
+          country_id?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "states_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
             referencedColumns: ["id"]
           },
         ]

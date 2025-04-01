@@ -31,6 +31,7 @@ import { DependentDialog } from "@/components/dependents/dependent-dialog"
 import { DependentForm } from "@/components/dependents/dependent-form"
 import { format } from "date-fns"
 import { pt } from "date-fns/locale"
+import { useAddress } from "@/hooks/use-address"
 
 /**
  * Props para o componente EmployeeAdmissionForm
@@ -95,11 +96,14 @@ const formSchema = z.object({
   neighborhood: z.string({
     required_error: "Bairro é obrigatório.",
   }),
-  city: z.string({
-    required_error: "Cidade é obrigatória.",
+  countryId: z.string({
+    required_error: "País é obrigatório.",
   }),
-  state: z.string({
+  stateId: z.string({
     required_error: "Estado é obrigatório.",
+  }),
+  cityId: z.string({
+    required_error: "Cidade é obrigatória.",
   }),
   zipCode: z.string({
     required_error: "CEP é obrigatório.",
@@ -151,6 +155,18 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
+  const { 
+    countries, 
+    states, 
+    cities, 
+    selectedCountryId, 
+    selectedStateId,
+    setSelectedCountryId, 
+    setSelectedStateId,
+    isLoadingCountries,
+    isLoadingStates,
+    isLoadingCities
+  } = useAddress()
 
   // Monitor para o estado do diálogo
   useEffect(() => {
@@ -242,8 +258,9 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
       number: "",
       complement: "",
       neighborhood: "",
-      city: "",
-      state: "",
+      countryId: "",
+      stateId: "",
+      cityId: "",
       zipCode: "",
       bankName: "",
       accountType: "checking",
@@ -296,15 +313,6 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
         service_description: values.contractType === ContractType.PJ ? values.serviceDescription : null,
 
         // Dados estruturados
-        address: {
-          street: values.street,
-          number: values.number,
-          complement: values.complement,
-          neighborhood: values.neighborhood,
-          city: values.city,
-          state: values.state,
-          zipCode: values.zipCode,
-        },
         bank_info: {
           bankName: values.bankName,
           accountType: values.accountType,
@@ -329,6 +337,26 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
 
       if (error) {
         throw new Error(error.message)
+      }
+
+      // Insere o endereço do funcionário na nova tabela
+      const addressData = {
+        employee_id: data.id,
+        street: values.street,
+        number: values.number,
+        complement: values.complement || null,
+        neighborhood: values.neighborhood,
+        postal_code: values.zipCode,
+        country_id: values.countryId,
+        state_id: values.stateId,
+        city_id: values.cityId
+      }
+
+      const { error: addressError } = await supabase.from("employee_addresses").insert(addressData)
+
+      if (addressError) {
+        console.error("Erro ao salvar endereço:", addressError)
+        // Continua mesmo com erro no endereço, mas loga o erro
       }
 
       // Se tiver dependentes, salva-os
@@ -400,6 +428,27 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
       setActiveTab("financial")
     }
   }
+
+  // Atualiza os estados quando o país é alterado
+  useEffect(() => {
+    const countryId = form.watch("countryId");
+    if (countryId) {
+      setSelectedCountryId(countryId);
+      // Limpa o estado e a cidade quando o país é alterado
+      form.setValue("stateId", "");
+      form.setValue("cityId", "");
+    }
+  }, [form.watch("countryId")]);
+
+  // Atualiza as cidades quando o estado é alterado
+  useEffect(() => {
+    const stateId = form.watch("stateId");
+    if (stateId) {
+      setSelectedStateId(stateId);
+      // Limpa a cidade quando o estado é alterado
+      form.setValue("cityId", "");
+    }
+  }, [form.watch("stateId")]);
 
   return (
     <>
@@ -808,29 +857,112 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
-                      name="city"
+                      name="countryId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Cidade</FormLabel>
-                          <FormControl>
-                            <Input placeholder="São Paulo" {...field} />
-                          </FormControl>
+                          <FormLabel>País</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o país" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {isLoadingCountries ? (
+                                <SelectItem value="loading" disabled>
+                                  Carregando países...
+                                </SelectItem>
+                              ) : (
+                                countries.map((country) => (
+                                  <SelectItem key={country.id} value={country.id}>
+                                    {country.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                     <FormField
                       control={form.control}
-                      name="state"
+                      name="stateId"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Estado</FormLabel>
-                          <FormControl>
-                            <Input placeholder="SP" {...field} />
-                          </FormControl>
+                          <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCountryId || isLoadingStates}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o estado" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {isLoadingStates ? (
+                                <SelectItem value="loading" disabled>
+                                  Carregando estados...
+                                </SelectItem>
+                              ) : !selectedCountryId ? (
+                                <SelectItem value="no-country" disabled>
+                                  Selecione um país primeiro
+                                </SelectItem>
+                              ) : states.length === 0 ? (
+                                <SelectItem value="no-states" disabled>
+                                  Nenhum estado encontrado
+                                </SelectItem>
+                              ) : (
+                                states.map((state) => (
+                                  <SelectItem key={state.id} value={state.id}>
+                                    {state.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="cityId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cidade</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value} disabled={!selectedStateId || isLoadingCities}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione a cidade" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {isLoadingCities ? (
+                                <SelectItem value="loading" disabled>
+                                  Carregando cidades...
+                                </SelectItem>
+                              ) : !selectedStateId ? (
+                                <SelectItem value="no-state" disabled>
+                                  Selecione um estado primeiro
+                                </SelectItem>
+                              ) : cities.length === 0 ? (
+                                <SelectItem value="no-cities" disabled>
+                                  Nenhuma cidade encontrada
+                                </SelectItem>
+                              ) : (
+                                cities.map((city) => (
+                                  <SelectItem key={city.id} value={city.id}>
+                                    {city.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
