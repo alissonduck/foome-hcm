@@ -3,7 +3,7 @@
  * Define os tipos utilizados para gerenciar cargos
  */
 
-import type { Database } from "./supabase"
+import type { Database } from "@/lib/supabase/types"
 
 // Tipo para cargo
 export type Role = Database["public"]["Tables"]["roles"]["Row"]
@@ -11,9 +11,9 @@ export type RoleInsert = Database["public"]["Tables"]["roles"]["Insert"]
 export type RoleUpdate = Database["public"]["Tables"]["roles"]["Update"]
 
 // Tipo para histórico de cargos dos funcionários
-export type RoleEmployee = Database["public"]["Tables"]["role_employees"]["Row"]
-export type RoleEmployeeInsert = Database["public"]["Tables"]["role_employees"]["Insert"]
-export type RoleEmployeeUpdate = Database["public"]["Tables"]["role_employees"]["Update"]
+export type RoleEmployee = Database["public"]["Tables"]["employee_roles"]["Row"]
+export type RoleEmployeeInsert = Database["public"]["Tables"]["employee_roles"]["Insert"]
+export type RoleEmployeeUpdate = Database["public"]["Tables"]["employee_roles"]["Update"]
 
 // Tipo para cursos requeridos para o cargo
 export type RoleCourse = Database["public"]["Tables"]["role_courses"]["Row"]

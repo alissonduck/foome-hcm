@@ -158,7 +158,7 @@ export async function getRoleWithDetails(roleId: string): Promise<RoleWithDetail
 
     // Conta quantos funcionários estão atualmente neste cargo
     const { count, error: countError } = await supabase
-      .from("role_employees")
+      .from("employee_roles")
       .select("*", { count: "exact", head: true })
       .eq("role_id", roleId)
       .eq("is_current", true)
@@ -206,15 +206,16 @@ export async function getEmployeeRoleHistory(employeeId: string): Promise<RoleEm
       .single()
       
     if (employeeError || !employee) {
+      console.error("Erro ao verificar funcionário:", employeeError)
       throw new Error("Funcionário não encontrado")
     }
     
-    if (employee.company_id !== company.id && !company.isAdmin) {
-      throw new Error("Você não tem permissão para acessar este funcionário")
+    if (employee.company_id !== company.id) {
+      throw new Error("Este funcionário não pertence à sua empresa")
     }
     
     const { data, error } = await supabase
-      .from("role_employees")
+      .from("employee_roles")
       .select(`
         *,
         employee:employees(
@@ -226,12 +227,12 @@ export async function getEmployeeRoleHistory(employeeId: string): Promise<RoleEm
       `)
       .eq("employee_id", employeeId)
       .order("start_date", { ascending: false })
-
+      
     if (error) {
       console.error("Erro ao buscar histórico de cargos:", error)
       throw new Error("Não foi possível buscar o histórico de cargos")
     }
-
+    
     return data as unknown as RoleEmployeeWithDetails[]
   } catch (error) {
     console.error("Erro ao buscar histórico de cargos:", error)
@@ -254,7 +255,7 @@ export async function getRoleEmployees(roleId: string): Promise<RoleEmployeeWith
     
     const supabase = await createClient()
     
-    // Verifica se o cargo pertence à empresa
+    // Verifica se o cargo pertence à empresa do usuário
     const { data: role, error: roleError } = await supabase
       .from("roles")
       .select("company_id")
@@ -262,6 +263,7 @@ export async function getRoleEmployees(roleId: string): Promise<RoleEmployeeWith
       .single()
       
     if (roleError || !role) {
+      console.error("Erro ao verificar cargo:", roleError)
       throw new Error("Cargo não encontrado")
     }
     
@@ -270,7 +272,7 @@ export async function getRoleEmployees(roleId: string): Promise<RoleEmployeeWith
     }
     
     const { data, error } = await supabase
-      .from("role_employees")
+      .from("employee_roles")
       .select(`
         *,
         employee:employees(
@@ -283,12 +285,12 @@ export async function getRoleEmployees(roleId: string): Promise<RoleEmployeeWith
       .eq("role_id", roleId)
       .eq("is_current", true)
       .order("start_date", { ascending: false })
-
+      
     if (error) {
       console.error("Erro ao buscar funcionários do cargo:", error)
       throw new Error("Não foi possível buscar os funcionários do cargo")
     }
-
+    
     return data as unknown as RoleEmployeeWithDetails[]
   } catch (error) {
     console.error("Erro ao buscar funcionários do cargo:", error)
@@ -719,7 +721,7 @@ export async function toggleRoleActive(roleId: string, active: boolean): Promise
 /**
  * Exclui um cargo
  * @param roleId ID do cargo
- * @returns Status da operação
+ * @returns Verdadeiro se a exclusão for bem-sucedida
  */
 export async function deleteRole(roleId: string): Promise<boolean> {
   try {
@@ -736,160 +738,14 @@ export async function deleteRole(roleId: string): Promise<boolean> {
     const supabase = await createClient()
     
     // Verifica se o cargo pertence à empresa do usuário
-    const { data: existingRole, error: existingRoleError } = await supabase
-      .from("roles")
-      .select("company_id")
-      .eq("id", roleId)
-      .single()
-    
-    if (existingRoleError || !existingRole) {
-      throw new Error("Cargo não encontrado")
-    }
-    
-    if (existingRole.company_id !== company.id) {
-      throw new Error("Este cargo não pertence à sua empresa")
-    }
-    
-    // Verifica se existem funcionários associados ao cargo
-    const { count, error: countError } = await supabase
-      .from("role_employees")
-      .select("*", { count: "exact", head: true })
-      .eq("role_id", roleId)
-      .eq("is_current", true)
-    
-    if (countError) {
-      throw countError
-    }
-    
-    if (count && count > 0) {
-      throw new Error("Não é possível excluir um cargo que possui funcionários associados")
-    }
-    
-    // Exclui os registros relacionados (usando uma transação manual)
-    
-    // 1. Exclui cursos
-    const { error: deleteCoursesError } = await supabase
-      .from("role_courses")
-      .delete()
-      .eq("role_id", roleId)
-    
-    if (deleteCoursesError) {
-      throw deleteCoursesError
-    }
-    
-    // 2. Exclui cursos complementares
-    const { error: deleteComplementaryCoursesError } = await supabase
-      .from("role_complementary_courses")
-      .delete()
-      .eq("role_id", roleId)
-    
-    if (deleteComplementaryCoursesError) {
-      throw deleteComplementaryCoursesError
-    }
-    
-    // 3. Exclui habilidades técnicas
-    const { error: deleteTechnicalSkillsError } = await supabase
-      .from("role_technical_skills")
-      .delete()
-      .eq("role_id", roleId)
-    
-    if (deleteTechnicalSkillsError) {
-      throw deleteTechnicalSkillsError
-    }
-    
-    // 4. Exclui habilidades comportamentais
-    const { error: deleteBehavioralSkillsError } = await supabase
-      .from("role_behavioral_skills")
-      .delete()
-      .eq("role_id", roleId)
-    
-    if (deleteBehavioralSkillsError) {
-      throw deleteBehavioralSkillsError
-    }
-    
-    // 5. Exclui idiomas
-    const { error: deleteLanguagesError } = await supabase
-      .from("role_languages")
-      .delete()
-      .eq("role_id", roleId)
-    
-    if (deleteLanguagesError) {
-      throw deleteLanguagesError
-    }
-    
-    // 6. Exclui histórico de cargos (não ativos)
-    const { error: deleteRoleEmployeesError } = await supabase
-      .from("role_employees")
-      .delete()
-      .eq("role_id", roleId)
-      .eq("is_current", false)
-    
-    if (deleteRoleEmployeesError) {
-      throw deleteRoleEmployeesError
-    }
-    
-    // 7. Finalmente, exclui o cargo
-    const { error: deleteRoleError } = await supabase
-      .from("roles")
-      .delete()
-      .eq("id", roleId)
-    
-    if (deleteRoleError) {
-      throw deleteRoleError
-    }
-    
-    // Revalida a página de cargos
-    revalidatePath("/dashboard/roles")
-    
-    return true
-  } catch (error) {
-    console.error("Erro ao excluir cargo:", error)
-    throw new Error(`Não foi possível excluir o cargo: ${error instanceof Error ? error.message : String(error)}`)
-  }
-}
-
-/**
- * Atribui um cargo a um funcionário
- * @param roleEmployee Dados da atribuição de cargo
- * @returns Status da operação
- */
-export async function assignRoleToEmployee(roleEmployee: RoleEmployeeInsert): Promise<boolean> {
-  try {
-    const company = await getCurrentCompany()
-    
-    if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
-    }
-    
-    if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem atribuir cargos")
-    }
-    
-    const supabase = await createClient()
-    
-    // Verifica se o funcionário pertence à empresa
-    const { data: employee, error: employeeError } = await supabase
-      .from("employees")
-      .select("company_id")
-      .eq("id", roleEmployee.employee_id)
-      .single()
-    
-    if (employeeError || !employee) {
-      throw new Error("Funcionário não encontrado")
-    }
-    
-    if (employee.company_id !== company.id) {
-      throw new Error("Este funcionário não pertence à sua empresa")
-    }
-    
-    // Verifica se o cargo pertence à empresa
     const { data: role, error: roleError } = await supabase
       .from("roles")
       .select("company_id")
-      .eq("id", roleEmployee.role_id)
+      .eq("id", roleId)
       .single()
-    
+      
     if (roleError || !role) {
+      console.error("Erro ao verificar cargo:", roleError)
       throw new Error("Cargo não encontrado")
     }
     
@@ -897,102 +753,62 @@ export async function assignRoleToEmployee(roleEmployee: RoleEmployeeInsert): Pr
       throw new Error("Este cargo não pertence à sua empresa")
     }
     
-    // Se a atribuição for atual, desativa todas as atribuições atuais
-    if (roleEmployee.is_current) {
-      const { error: updateError } = await supabase
-        .from("role_employees")
-        .update({
-          is_current: false,
-          end_date: roleEmployee.start_date,
-        })
-        .eq("employee_id", roleEmployee.employee_id)
-        .eq("is_current", true)
+    // Verifica se há funcionários atualmente neste cargo
+    const { count, error: countError } = await supabase
+      .from("employee_roles")
+      .select("*", { count: "exact", head: true })
+      .eq("role_id", roleId)
+      .eq("is_current", true)
+
+    if (countError) {
+      console.error("Erro ao verificar funcionários do cargo:", countError)
+      throw new Error("Não foi possível verificar os funcionários do cargo")
+    }
+
+    if (count && count > 0) {
+      throw new Error("Não é possível excluir um cargo que possui funcionários ativos")
+    }
+
+    // Remove todos os registros relacionados
+    const tables = [
+      "role_languages",
+      "role_behavioral_skills",
+      "role_technical_skills",
+      "role_complementary_courses",
+      "role_courses",
+      "employee_roles"
+    ]
+    
+    for (const table of tables) {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq("role_id", roleId)
       
-      if (updateError) {
-        throw updateError
+      if (error) {
+        console.error(`Erro ao remover dados da tabela ${table}:`, error)
+        throw error
       }
     }
     
-    // Insere a nova atribuição
-    const { error: insertError } = await supabase
-      .from("role_employees")
-      .insert({
-        ...roleEmployee,
-        company_id: company.id,
-      })
+    // Exclui o cargo após remover todas as dependências
+    const { error: deleteError } = await supabase
+      .from("roles")
+      .delete()
+      .eq("id", roleId)
     
-    if (insertError) {
-      throw insertError
+    if (deleteError) {
+      console.error("Erro ao excluir cargo:", deleteError)
+      throw deleteError
     }
     
-    // Revalida as páginas relevantes
-    revalidatePath(`/dashboard/employees/${roleEmployee.employee_id}`)
-    revalidatePath(`/dashboard/roles/${roleEmployee.role_id}`)
+    // Revalida as páginas
+    revalidatePath("/dashboard/roles")
     
     return true
   } catch (error) {
-    console.error("Erro ao atribuir cargo:", error)
-    throw new Error(`Não foi possível atribuir o cargo: ${error instanceof Error ? error.message : String(error)}`)
-  }
-}
-
-/**
- * Encerra a atribuição de um cargo a um funcionário
- * @param roleEmployeeId ID da atribuição de cargo
- * @param endDate Data de término
- * @returns Status da operação
- */
-export async function endRoleAssignment(roleEmployeeId: string, endDate: string): Promise<boolean> {
-  try {
-    const company = await getCurrentCompany()
-    
-    if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
-    }
-    
-    if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem encerrar atribuições de cargos")
-    }
-    
-    const supabase = await createClient()
-    
-    // Busca a atribuição de cargo para verificar permissões
-    const { data: roleEmployee, error: fetchError } = await supabase
-      .from("role_employees")
-      .select("*, employee:employees(company_id)")
-      .eq("id", roleEmployeeId)
-      .single()
-    
-    if (fetchError || !roleEmployee) {
-      throw new Error("Atribuição de cargo não encontrada")
-    }
-    
-    // Verifica se o funcionário pertence à empresa do usuário
-    if (roleEmployee.employee.company_id !== company.id) {
-      throw new Error("Este funcionário não pertence à sua empresa")
-    }
-    
-    // Atualiza a atribuição de cargo
-    const { error } = await supabase
-      .from("role_employees")
-      .update({
-        is_current: false,
-        end_date: endDate,
-      })
-      .eq("id", roleEmployeeId)
-    
-    if (error) {
-      throw error
-    }
-    
-    // Revalida as páginas relevantes
-    revalidatePath(`/dashboard/employees/${roleEmployee.employee_id}`)
-    revalidatePath(`/dashboard/roles/${roleEmployee.role_id}`)
-    
-    return true
-  } catch (error) {
-    console.error("Erro ao encerrar atribuição de cargo:", error)
-    throw new Error(`Não foi possível encerrar a atribuição de cargo: ${error instanceof Error ? error.message : String(error)}`)
+    console.error("Erro ao excluir cargo:", error)
+    throw new Error(`Não foi possível excluir o cargo: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -1306,7 +1122,7 @@ export async function deleteRoleById(id: string): Promise<ServerResponse> {
 
     // Verificar se há funcionários vinculados ao cargo
     const { count, error: countError } = await supabase
-      .from("role_employees")
+      .from("employee_roles")
       .select("id", { count: "exact", head: true })
       .eq("role_id", id)
       .eq("is_current", true)
@@ -1380,7 +1196,7 @@ export async function deleteRoleById(id: string): Promise<ServerResponse> {
     
     // 6. Exclui histórico de cargos (não ativos)
     const { error: deleteRoleEmployeesError } = await supabase
-      .from("role_employees")
+      .from("employee_roles")
       .delete()
       .eq("role_id", id)
       .eq("is_current", false)
@@ -1500,7 +1316,7 @@ export async function assignRoleToEmployeeFromForm(formData: FormData): Promise<
 
     // Verificar se o funcionário já tem um cargo atual
     const { data: currentRoleData } = await supabase
-      .from("role_employees")
+      .from("employee_roles")
       .select("id")
       .eq("employee_id", employeeId)
       .eq("is_current", true)
@@ -1508,7 +1324,7 @@ export async function assignRoleToEmployeeFromForm(formData: FormData): Promise<
     // Se o funcionário já tiver um cargo atual, finalizar esse cargo
     if (currentRoleData && currentRoleData.length > 0) {
       await supabase
-        .from("role_employees")
+        .from("employee_roles")
         .update({
           is_current: false,
           end_date: startDate || new Date().toISOString(),
@@ -1520,7 +1336,7 @@ export async function assignRoleToEmployeeFromForm(formData: FormData): Promise<
 
     // Atribuir o novo cargo ao funcionário
     const { data, error } = await supabase
-      .from("role_employees")
+      .from("employee_roles")
       .insert({
         role_id: roleId,
         employee_id: employeeId,
@@ -1586,7 +1402,7 @@ export async function endRoleAssignmentById(id: string): Promise<ServerResponse>
     
     // Busca a atribuição de cargo para verificar permissões
     const { data: roleEmployee, error: fetchError } = await supabase
-      .from("role_employees")
+      .from("employee_roles")
       .select("*, employee:employees(company_id)")
       .eq("id", id)
       .single()
@@ -1608,7 +1424,7 @@ export async function endRoleAssignmentById(id: string): Promise<ServerResponse>
 
     // Finalizar a atribuição
     const { data, error } = await supabase
-      .from("role_employees")
+      .from("employee_roles")
       .update({
         is_current: false,
         end_date: new Date().toISOString(),
@@ -1640,6 +1456,363 @@ export async function endRoleAssignmentById(id: string): Promise<ServerResponse>
     return constructServerResponse({
       success: false,
       error: error instanceof Error ? error.message : "Erro ao finalizar atribuição de cargo"
+    })
+  }
+}
+
+/**
+ * Server action para obter todos os cargos com paginação e filtro
+ * @param page Número da página (1-indexed)
+ * @param limit Limite de itens por página
+ * @param search Termo de busca
+ * @returns Resposta com lista de cargos e metadados de paginação
+ */
+export async function getRolesWithPagination(
+  page: number = 1,
+  limit: number = 10,
+  search: string = ""
+): Promise<ServerResponse> {
+  try {
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    const supabase = await createClient()
+    
+    // Calcula o offset para a paginação (1-indexed para 0-indexed)
+    const offset = (page - 1) * limit
+    
+    // Prepara a query base
+    let query = supabase
+      .from("roles")
+      .select(`
+        *,
+        team:teams(id, name),
+        employee_count:employee_roles!role_id(count)
+      `, { count: "exact" })
+      .eq("company_id", company.id)
+    
+    // Adiciona filtro de busca se fornecido
+    if (search && search.trim() !== "") {
+      query = query.ilike("title", `%${search}%`)
+    }
+    
+    // Adiciona paginação e ordenação
+    query = query
+      .order("title", { ascending: true })
+      .range(offset, offset + limit - 1)
+    
+    const { data, count, error } = await query
+    
+    if (error) {
+      return constructServerResponse({
+        success: false,
+        error: `Erro ao buscar cargos: ${error.message}`
+      })
+    }
+    
+    // Prepara os metadados de paginação
+    const totalItems = count || 0
+    const totalPages = Math.ceil(totalItems / limit)
+    
+    return constructServerResponse({
+      success: true,
+      data: {
+        items: data,
+        meta: {
+          page,
+          limit,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      },
+      message: `${totalItems} cargos encontrados`
+    })
+  } catch (error) {
+    console.error("Erro ao buscar cargos:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao buscar cargos"
+    })
+  }
+}
+
+/**
+ * Server action para obter detalhes de um cargo por ID
+ * @param id ID do cargo
+ * @returns Resposta com detalhes do cargo
+ */
+export async function getRoleDetailsById(id: string): Promise<ServerResponse> {
+  try {
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    const supabase = await createClient()
+    
+    // Busca o cargo base
+    const { data: role, error } = await supabase
+      .from("roles")
+      .select(`
+        *,
+        team:teams(id, name)
+      `)
+      .eq("id", id)
+      .single()
+    
+    if (error) {
+      return constructServerResponse({
+        success: false,
+        error: "Cargo não encontrado"
+      })
+    }
+    
+    // Verifica se o cargo pertence à empresa do usuário
+    if (role.company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Este cargo não pertence à sua empresa"
+      })
+    }
+    
+    // Busca todas as informações relacionadas
+    const [
+      coursesResult,
+      complementaryCoursesResult,
+      technicalSkillsResult,
+      behavioralSkillsResult,
+      languagesResult,
+      employeesCountResult
+    ] = await Promise.all([
+      // Cursos
+      supabase
+        .from("role_courses")
+        .select("*")
+        .eq("role_id", id),
+      
+      // Cursos complementares
+      supabase
+        .from("role_complementary_courses")
+        .select("*")
+        .eq("role_id", id),
+      
+      // Habilidades técnicas
+      supabase
+        .from("role_technical_skills")
+        .select("*")
+        .eq("role_id", id),
+      
+      // Habilidades comportamentais
+      supabase
+        .from("role_behavioral_skills")
+        .select("*")
+        .eq("role_id", id),
+      
+      // Idiomas
+      supabase
+        .from("role_languages")
+        .select("*")
+        .eq("role_id", id),
+      
+      // Contagem de funcionários
+      supabase
+        .from("employee_roles")
+        .select("*", { count: "exact", head: true })
+        .eq("role_id", id)
+        .eq("is_current", true)
+    ])
+    
+    // Verifica erros
+    const errors = []
+    
+    if (coursesResult.error) errors.push(`Erro ao buscar cursos: ${coursesResult.error.message}`)
+    if (complementaryCoursesResult.error) errors.push(`Erro ao buscar cursos complementares: ${complementaryCoursesResult.error.message}`)
+    if (technicalSkillsResult.error) errors.push(`Erro ao buscar habilidades técnicas: ${technicalSkillsResult.error.message}`)
+    if (behavioralSkillsResult.error) errors.push(`Erro ao buscar habilidades comportamentais: ${behavioralSkillsResult.error.message}`)
+    if (languagesResult.error) errors.push(`Erro ao buscar idiomas: ${languagesResult.error.message}`)
+    if (employeesCountResult.error) errors.push(`Erro ao contar funcionários: ${employeesCountResult.error.message}`)
+    
+    if (errors.length > 0) {
+      return constructServerResponse({
+        success: false,
+        error: errors.join("; ")
+      })
+    }
+    
+    // Combina todos os dados
+    const roleWithDetails = {
+      ...role,
+      courses: coursesResult.data || [],
+      complementary_courses: complementaryCoursesResult.data || [],
+      technical_skills: technicalSkillsResult.data || [],
+      behavioral_skills: behavioralSkillsResult.data || [],
+      languages: languagesResult.data || [],
+      employees_count: employeesCountResult.count || 0
+    }
+    
+    return constructServerResponse({
+      success: true,
+      data: roleWithDetails,
+      message: "Detalhes do cargo obtidos com sucesso"
+    })
+  } catch (error) {
+    console.error("Erro ao buscar detalhes do cargo:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao buscar detalhes do cargo"
+    })
+  }
+}
+
+/**
+ * Server action para obter o histórico de cargos de um funcionário
+ * @param employeeId ID do funcionário
+ * @returns Resposta com histórico de cargos
+ */
+export async function getEmployeeRoleHistoryById(employeeId: string): Promise<ServerResponse> {
+  try {
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    const supabase = await createClient()
+    
+    // Verifica se o funcionário pertence à empresa
+    const { data: employee, error: employeeError } = await supabase
+      .from("employees")
+      .select("company_id")
+      .eq("id", employeeId)
+      .single()
+    
+    if (employeeError || !employee) {
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado"
+      })
+    }
+    
+    if (employee.company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Este funcionário não pertence à sua empresa"
+      })
+    }
+    
+    // Busca o histórico de cargos
+    const { data, error } = await supabase
+      .from("employee_roles")
+      .select(`
+        *,
+        role:roles(id, title, contract_type)
+      `)
+      .eq("employee_id", employeeId)
+      .order("start_date", { ascending: false })
+    
+    if (error) {
+      return constructServerResponse({
+        success: false,
+        error: `Erro ao buscar histórico de cargos: ${error.message}`
+      })
+    }
+    
+    return constructServerResponse({
+      success: true,
+      data,
+      message: `${data.length} registros encontrados`
+    })
+  } catch (error) {
+    console.error("Erro ao buscar histórico de cargos:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao buscar histórico de cargos"
+    })
+  }
+}
+
+/**
+ * Server action para obter funcionários de um cargo
+ * @param roleId ID do cargo
+ * @returns Resposta com lista de funcionários
+ */
+export async function getRoleEmployeesById(roleId: string): Promise<ServerResponse> {
+  try {
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    const supabase = await createClient()
+    
+    // Verifica se o cargo pertence à empresa
+    const { data: role, error: roleError } = await supabase
+      .from("roles")
+      .select("company_id")
+      .eq("id", roleId)
+      .single()
+    
+    if (roleError || !role) {
+      return constructServerResponse({
+        success: false,
+        error: "Cargo não encontrado"
+      })
+    }
+    
+    if (role.company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Este cargo não pertence à sua empresa"
+      })
+    }
+    
+    // Busca funcionários com este cargo
+    const { data, error } = await supabase
+      .from("employee_roles")
+      .select(`
+        *,
+        employee:employees(id, full_name, email, status, position)
+      `)
+      .eq("role_id", roleId)
+      .eq("is_current", true)
+      .order("start_date", { ascending: false })
+    
+    if (error) {
+      return constructServerResponse({
+        success: false,
+        error: `Erro ao buscar funcionários: ${error.message}`
+      })
+    }
+    
+    return constructServerResponse({
+      success: true,
+      data,
+      message: `${data.length} funcionários encontrados`
+    })
+  } catch (error) {
+    console.error("Erro ao buscar funcionários do cargo:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao buscar funcionários"
     })
   }
 } 

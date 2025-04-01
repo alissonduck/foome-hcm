@@ -678,54 +678,6 @@ export type Database = {
           },
         ]
       }
-      role_employees: {
-        Row: {
-          created_at: string | null
-          employee_id: string
-          end_date: string | null
-          id: string
-          is_current: boolean | null
-          role_id: string
-          start_date: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          employee_id: string
-          end_date?: string | null
-          id?: string
-          is_current?: boolean | null
-          role_id: string
-          start_date: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          employee_id?: string
-          end_date?: string | null
-          id?: string
-          is_current?: boolean | null
-          role_id?: string
-          start_date?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "role_employees_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "role_employees_role_id_fkey"
-            columns: ["role_id"]
-            isOneToOne: false
-            referencedRelation: "roles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       role_languages: {
         Row: {
           created_at: string | null

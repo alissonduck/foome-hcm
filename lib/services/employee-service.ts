@@ -80,7 +80,7 @@ export class employeeService {
       
       // Busca os cargos associados ao funcionário
       const { data: roles, error: rolesError } = await supabase
-        .from("role_employees")
+        .from("employee_roles")
         .select(`
           *,
           role:role_id (
@@ -321,4 +321,4 @@ export class employeeService {
       throw new Error("Não foi possível buscar os departamentos")
     }
   }
-} 
+}
