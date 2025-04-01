@@ -4,8 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { AuthService } from "@/lib/services/auth-service"
-import { registerSchema } from "@/lib/schemas/auth-schema"
+import { userRegisterSchema } from "@/lib/schemas/register-schema"
+import { registerUser } from "@/server/actions/register-actions"
 
 /**
  * POST - Registra um novo usuário
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Valida os dados
-    const validationResult = registerSchema.safeParse(body)
+    const validationResult = userRegisterSchema.safeParse(body)
 
     if (!validationResult.success) {
       return NextResponse.json(
@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Realiza o registro
-    const result = await AuthService.signUp({
+    // Utiliza a server action para realizar o registro
+    const result = await registerUser({
       fullName: validationResult.data.fullName,
       email: validationResult.data.email,
       password: validationResult.data.password,

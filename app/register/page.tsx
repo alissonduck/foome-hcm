@@ -3,7 +3,7 @@
  */
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import RegisterForm from "@/components/auth/register-form"
+import UserRegisterForm from "@/components/auth/user-register-form"
 import AuthLayout from "@/components/auth/auth-layout"
 
 /**
@@ -25,7 +25,7 @@ export default async function RegisterPage() {
   // Se não estiver autenticado, exibe o formulário de registro
   return (
     <AuthLayout title="Criar uma conta" description="Preencha os dados abaixo para criar sua conta">
-      <RegisterForm />
+      <UserRegisterForm />
     </AuthLayout>
   )
 }

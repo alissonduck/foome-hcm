@@ -10,6 +10,10 @@ export interface ServerResponse {
   success: boolean
   message?: string
   error?: string
+  validation?: any
+  requireEmailConfirmation?: boolean
+  hasCompany?: boolean
+  [key: string]: any // Permite propriedades adicionais para flexibilidade
 }
 
 /**
@@ -20,6 +24,10 @@ interface ServerResponseParams {
   success: boolean
   message?: string
   error?: string
+  validation?: any
+  requireEmailConfirmation?: boolean
+  hasCompany?: boolean
+  [key: string]: any // Permite propriedades adicionais para flexibilidade
 }
 
 /**
@@ -29,9 +37,6 @@ interface ServerResponseParams {
  */
 export function constructServerResponse(params: ServerResponseParams): ServerResponse {
   return {
-    data: params.data,
-    success: params.success,
-    message: params.message,
-    error: params.error
+    ...params
   }
 } 

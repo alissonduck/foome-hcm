@@ -3,7 +3,8 @@
  */
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import CompanyRegistrationForm from "@/components/company/company-registration-form"
+import CompanyRegisterForm from "@/components/company/company-register-form"
+import { checkUserCompany } from "@/server/actions/register-actions"
 
 /**
  * Página de registro da empresa
@@ -22,21 +23,17 @@ export default async function CompanyRegistrationPage() {
   }
 
   // Verifica se o usuário já tem uma empresa cadastrada
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("id, company_id")
-    .eq("user_id", session.user.id)
-    .single()
-
+  const result = await checkUserCompany(session.user.id)
+  
   // Se já tiver uma empresa, redireciona para o dashboard
-  if (employee?.company_id) {
+  if (result.success && result.hasCompany) {
     redirect("/dashboard")
   }
 
   // Se não tiver uma empresa, exibe o formulário de registro
   return (
     <div className="container max-w-4xl py-10">
-      <CompanyRegistrationForm userId={session.user.id} />
+      <CompanyRegisterForm userId={session.user.id} />
     </div>
   )
 }
