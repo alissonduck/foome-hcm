@@ -459,6 +459,7 @@ export type Database = {
           pis: string | null
           position: string | null
           rg: string | null
+          role_id: string | null
           service_description: string | null
           status: string
           updated_at: string | null
@@ -488,6 +489,7 @@ export type Database = {
           pis?: string | null
           position?: string | null
           rg?: string | null
+          role_id?: string | null
           service_description?: string | null
           status?: string
           updated_at?: string | null
@@ -517,6 +519,7 @@ export type Database = {
           pis?: string | null
           position?: string | null
           rg?: string | null
+          role_id?: string | null
           service_description?: string | null
           status?: string
           updated_at?: string | null
@@ -528,6 +531,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
             referencedColumns: ["id"]
           },
         ]

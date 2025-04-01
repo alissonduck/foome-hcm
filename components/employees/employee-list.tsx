@@ -18,7 +18,7 @@ import { UserPlus, Search, Filter } from "lucide-react"
  * Props para o componente EmployeeList
  */
 interface EmployeeListProps {
-  employees: any[]
+  employees: any[] | null
   isAdmin: boolean
 }
 
@@ -28,16 +28,19 @@ interface EmployeeListProps {
  * @param isAdmin Indica se o usuário é administrador
  * @returns Listagem de funcionários com filtros
  */
-export default function EmployeeList({ employees, isAdmin }: EmployeeListProps) {
+export default function EmployeeList({ employees = [], isAdmin }: EmployeeListProps) {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState<string>("")
+  
+  // Garantir que employees seja sempre um array
+  const employeeArray = Array.isArray(employees) ? employees : [];
 
   /**
    * Filtra os funcionários com base nos filtros selecionados
    * @returns Lista de funcionários filtrada
    */
-  const filteredEmployees = employees.filter((employee) => {
+  const filteredEmployees = employeeArray.filter((employee) => {
     // Filtro por status
     if (statusFilter !== "all" && employee.status !== statusFilter) {
       return false
@@ -47,8 +50,8 @@ export default function EmployeeList({ employees, isAdmin }: EmployeeListProps) 
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       return (
-        employee.full_name.toLowerCase().includes(query) ||
-        employee.email.toLowerCase().includes(query) ||
+        employee.full_name?.toLowerCase().includes(query) ||
+        employee.email?.toLowerCase().includes(query) ||
         (employee.department && employee.department.toLowerCase().includes(query)) ||
         (employee.position && employee.position.toLowerCase().includes(query))
       )

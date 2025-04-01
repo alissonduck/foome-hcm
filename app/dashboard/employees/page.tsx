@@ -19,7 +19,10 @@ export default async function EmployeesPage() {
   }
 
   // Busca todos os funcionários da empresa usando Server Action
-  const employees = await getEmployees()
+  const response = await getEmployees()
+  
+  // Verificar se a busca de funcionários foi bem-sucedida
+  const employees = response.success && response.data ? response.data : []
 
   return (
     <div className="space-y-6">
