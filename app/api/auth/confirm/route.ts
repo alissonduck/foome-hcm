@@ -3,9 +3,10 @@
  * Implementa rota para confirmar email de usuário (para ambiente de desenvolvimento)
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { AuthService } from "@/lib/services/auth-service"
 import { confirmEmailSchema } from "@/lib/schemas/auth-schema"
+import { successResponse, errorResponse, HttpStatus, ErrorCodes } from "@/lib/utils/api-response"
 
 /**
  * POST - Confirma email manualmente
@@ -17,10 +18,13 @@ export async function POST(request: NextRequest) {
   try {
     // Verifica se estamos em ambiente de desenvolvimento
     if (process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        { error: "Esta rota está disponível apenas em ambiente de desenvolvimento" },
-        { status: 403 }
-      )
+      return errorResponse({
+        error: {
+          message: "Esta rota está disponível apenas em ambiente de desenvolvimento",
+          code: ErrorCodes.AUTHORIZATION_ERROR
+        },
+        status: HttpStatus.FORBIDDEN
+      })
     }
 
     // Obtém os dados da requisição
@@ -30,14 +34,14 @@ export async function POST(request: NextRequest) {
     const validationResult = confirmEmailSchema.safeParse(body)
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: "Dados inválidos", 
-          issues: validationResult.error.format() 
+      return errorResponse({
+        error: {
+          message: "Dados inválidos",
+          details: validationResult.error.format(),
+          code: ErrorCodes.VALIDATION_ERROR
         },
-        { status: 400 }
-      )
+        status: HttpStatus.UNPROCESSABLE_ENTITY
+      })
     }
 
     // Tenta confirmar o email
@@ -46,21 +50,91 @@ export async function POST(request: NextRequest) {
       validationResult.data.password
     )
 
-    // Retorna o resultado
-    return NextResponse.json(result, {
-      status: result.success ? 200 : (result.emailNotConfirmed ? 202 : 400)
+    // Define o status da resposta com base no resultado
+    const status = result.success 
+      ? HttpStatus.OK 
+      : (result.emailNotConfirmed ? 202 : HttpStatus.BAD_REQUEST)
+
+    // Se a confirmação falhou, retorna erro
+    if (!result.success) {
+      return errorResponse({
+        error: {
+          message: "Falha na confirmação de email",
+          details: result.message,
+          code: ErrorCodes.VALIDATION_ERROR
+        },
+        status
+      })
+    }
+
+    // Retorna sucesso
+    return successResponse({
+      message: result.message,
+      status
     })
   } catch (error) {
     console.error("[AUTH_CONFIRM_EMAIL_ERROR]", error)
     
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: "Erro ao confirmar email",
-        message: error instanceof Error ? error.message : "Ocorreu um erro ao processar a solicitação."
+    return errorResponse({
+      error: {
+        message: "Erro ao confirmar email",
+        details: error instanceof Error ? error.message : "Ocorreu um erro ao processar a solicitação.",
+        code: ErrorCodes.INTERNAL_ERROR
       },
-      { status: 500 }
-    )
+      status: HttpStatus.INTERNAL_SERVER_ERROR
+    })
   }
+}
+
+/**
+ * GET - Método não suportado
+ */
+export function GET() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para confirmar email.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+/**
+ * PUT - Método não suportado
+ */
+export function PUT() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para confirmar email.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+/**
+ * PATCH - Método não suportado
+ */
+export function PATCH() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para confirmar email.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+/**
+ * DELETE - Método não suportado
+ */
+export function DELETE() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para confirmar email.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
 }
 

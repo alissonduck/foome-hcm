@@ -3,9 +3,10 @@
  * Implementa rota para atualizar a senha do usuário
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { AuthService } from "@/lib/services/auth-service"
 import { resetPasswordSchema } from "@/lib/schemas/auth-schema"
+import { successResponse, errorResponse, HttpStatus, ErrorCodes } from "@/lib/utils/api-response"
 
 /**
  * POST - Redefine senha do usuário
@@ -22,14 +23,14 @@ export async function POST(request: NextRequest) {
     const validationResult = resetPasswordSchema.safeParse(body)
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: "Dados inválidos", 
-          issues: validationResult.error.format() 
+      return errorResponse({
+        error: {
+          message: "Dados inválidos",
+          details: validationResult.error.format(),
+          code: ErrorCodes.VALIDATION_ERROR
         },
-        { status: 400 }
-      )
+        status: HttpStatus.UNPROCESSABLE_ENTITY
+      })
     }
 
     // Redefine a senha
@@ -40,24 +41,82 @@ export async function POST(request: NextRequest) {
 
     // Se a redefinição falhou, retorna erro
     if (!result.success) {
-      return NextResponse.json(
-        result,
-        { status: 400 }
-      )
+      return errorResponse({
+        error: {
+          message: "Falha na redefinição de senha",
+          details: result.message,
+          code: ErrorCodes.VALIDATION_ERROR
+        },
+        status: HttpStatus.BAD_REQUEST
+      })
     }
 
     // Retorna sucesso
-    return NextResponse.json(result)
+    return successResponse({
+      message: "Senha redefinida com sucesso"
+    })
   } catch (error) {
     console.error("[AUTH_RESET_PASSWORD_ERROR]", error)
     
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: "Erro ao redefinir senha",
-        message: error instanceof Error ? error.message : "Ocorreu um erro ao processar a solicitação."
+    return errorResponse({
+      error: {
+        message: "Erro ao redefinir senha",
+        details: error instanceof Error ? error.message : "Ocorreu um erro ao processar a solicitação.",
+        code: ErrorCodes.INTERNAL_ERROR
       },
-      { status: 500 }
-    )
+      status: HttpStatus.INTERNAL_SERVER_ERROR
+    })
   }
+}
+
+/**
+ * GET - Método não suportado
+ */
+export function GET() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para redefinir senha.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+/**
+ * PUT - Método não suportado
+ */
+export function PUT() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para redefinir senha.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+/**
+ * PATCH - Método não suportado
+ */
+export function PATCH() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para redefinir senha.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+/**
+ * DELETE - Método não suportado
+ */
+export function DELETE() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para redefinir senha.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
 } 

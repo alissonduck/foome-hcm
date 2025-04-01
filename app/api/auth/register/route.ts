@@ -1,11 +1,12 @@
 /**
  * API para registro de usuários
- * Implementa rota para criar um novo usuário
+ * Implementa rota para criar um novo usuário no sistema
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { userRegisterSchema } from "@/lib/schemas/register-schema"
 import { registerUser } from "@/server/actions/register-actions"
+import { successResponse, errorResponse, HttpStatus, ErrorCodes } from "@/lib/utils/api-response"
 
 /**
  * POST - Registra um novo usuário
@@ -22,14 +23,14 @@ export async function POST(request: NextRequest) {
     const validationResult = userRegisterSchema.safeParse(body)
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: "Dados inválidos", 
-          issues: validationResult.error.format() 
+      return errorResponse({
+        error: {
+          message: "Dados inválidos",
+          details: validationResult.error.format(),
+          code: ErrorCodes.VALIDATION_ERROR
         },
-        { status: 400 }
-      )
+        status: HttpStatus.UNPROCESSABLE_ENTITY
+      })
     }
 
     // Utiliza a server action para realizar o registro
@@ -42,24 +43,84 @@ export async function POST(request: NextRequest) {
 
     // Se o registro falhou, retorna erro
     if (!result.success) {
-      return NextResponse.json(
-        result,
-        { status: 400 }
-      )
+      return errorResponse({
+        error: {
+          message: result.error || "Falha no registro",
+          details: result.message,
+          code: ErrorCodes.VALIDATION_ERROR
+        },
+        status: HttpStatus.BAD_REQUEST
+      })
     }
 
     // Retorna sucesso
-    return NextResponse.json(result)
+    return successResponse({
+      data: result.data,
+      message: "Registro realizado com sucesso. Verifique seu email para confirmar sua conta.",
+      status: HttpStatus.CREATED
+    })
   } catch (error) {
     console.error("[AUTH_REGISTER_ERROR]", error)
     
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: "Erro ao fazer registro",
-        message: error instanceof Error ? error.message : "Ocorreu um erro ao processar a solicitação."
+    return errorResponse({
+      error: {
+        message: "Erro ao fazer registro",
+        details: error instanceof Error ? error.message : "Ocorreu um erro ao processar a solicitação.",
+        code: ErrorCodes.INTERNAL_ERROR
       },
-      { status: 500 }
-    )
+      status: HttpStatus.INTERNAL_SERVER_ERROR
+    })
   }
+}
+
+/**
+ * GET - Método não suportado
+ */
+export function GET() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para registrar um usuário.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+/**
+ * PUT - Método não suportado
+ */
+export function PUT() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para registrar um usuário.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+/**
+ * PATCH - Método não suportado
+ */
+export function PATCH() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para registrar um usuário.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+/**
+ * DELETE - Método não suportado
+ */
+export function DELETE() {
+  return errorResponse({
+    error: {
+      message: "Método não suportado. Use POST para registrar um usuário.",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
 } 
