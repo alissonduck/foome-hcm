@@ -49,7 +49,7 @@ interface Subteam {
 
 interface Role {
   id: string
-  name: string
+  title: string
   description?: string
 }
 
@@ -294,7 +294,7 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
           .from('roles')
           .select('*')
           .eq('company_id', companyId)
-          .order('name')
+          .order('title')
         
         if (error) throw error
         setRoles(data || [])
@@ -461,7 +461,8 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
         employee_id: data.id,
         role_id: values.roleId,
         company_id: companyId,
-        is_primary: true
+        is_primary: true,
+        start_date: values.hireDate
       }
       
       promises.push(
@@ -472,8 +473,7 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
       if (values.teamId) {
         const teamMemberData = {
           employee_id: data.id,
-          team_id: values.teamId,
-          company_id: companyId
+          team_id: values.teamId
         }
         
         promises.push(
@@ -485,8 +485,7 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
       if (values.subteamId) {
         const subteamMemberData = {
           employee_id: data.id,
-          subteam_id: values.subteamId,
-          company_id: companyId
+          subteam_id: values.subteamId
         }
         
         promises.push(
@@ -812,7 +811,7 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                               ) : (
                                 roles.map(role => (
                                   <SelectItem key={role.id} value={role.id}>
-                                    {role.name}
+                                    {role.title}
                                   </SelectItem>
                                 ))
                               )}

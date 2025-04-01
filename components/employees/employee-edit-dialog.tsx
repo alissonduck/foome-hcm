@@ -3,7 +3,7 @@
 /**
  * Diálogo para edição de funcionário
  */
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -136,124 +136,20 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
     },
   })
 
-  // Carrega os dados do funcionário quando o diálogo é aberto
-  useEffect(() => {
-    if (open && employee) {
-      form.reset({
-        fullName: employee.full_name,
-        email: employee.email,
-        phone: employee.phone || "",
-        status: employee.status,
-        teamId: "",
-        subteamId: "",
-        roleId: "",
-      })
-
-      // Carrega as equipes, subequipes, cargos e relacionamentos do funcionário
-      loadTeams()
-      loadSubteams()
-      loadRoles()
-      loadEmployeeRelations(employee.id)
-    }
-  }, [open, employee, form])
-
-  // Filtra as subequipes quando a equipe é selecionada
-  useEffect(() => {
-    const teamId = form.watch("teamId")
-    if (teamId) {
-      const filtered = subteams.filter(subteam => subteam.team_id === teamId)
-      setFilteredSubteams(filtered)
-      
-      // Se não houver subequipes disponíveis, limpa o campo
-      if (filtered.length === 0) {
-        form.setValue("subteamId", "")
-      }
-      // Se a subequipe atual não pertence à equipe selecionada, limpa o campo
-      else if (form.watch("subteamId")) {
-        const currentSubteam = filtered.find(st => st.id === form.watch("subteamId"))
-        if (!currentSubteam) {
-          form.setValue("subteamId", "")
-        }
-      }
-    } else {
-      setFilteredSubteams([])
-      form.setValue("subteamId", "")
-    }
-  }, [form.watch("teamId"), subteams, form])
-
-  // Função para carregar as equipes
-  const loadTeams = async () => {
-    setLoadingTeams(true)
-    try {
-      const { data, error } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('company_id', companyId)
-        .order('name')
-      
-      if (error) throw error
-      setTeams(data || [])
-    } catch (error: any) {
-      console.error('Erro ao carregar equipes:', error.message || error)
+  // Função para carregar os relacionamentos do funcionário usando useCallback
+  const loadEmployeeRelations = useCallback(async (employeeId: string) => {
+    // Verificar se employeeId e companyId são válidos
+    if (!employeeId || !companyId) {
+      console.error('employeeId ou companyId inválidos:', { employeeId, companyId });
       toast({
         variant: "destructive",
-        title: "Erro ao carregar equipes",
-        description: "Não foi possível carregar a lista de equipes."
-      })
-    } finally {
-      setLoadingTeams(false)
+        title: "Erro ao carregar dados",
+        description: "Identificadores inválidos para buscar dados relacionados."
+      });
+      setLoadingRelations(false);
+      return;
     }
-  }
 
-  // Função para carregar as subequipes
-  const loadSubteams = async () => {
-    setLoadingSubteams(true)
-    try {
-      const { data, error } = await supabase
-        .from('subteams')
-        .select('*')
-        .order('name')
-      
-      if (error) throw error
-      setSubteams(data || [])
-    } catch (error: any) {
-      console.error('Erro ao carregar subequipes:', error.message || error)
-      toast({
-        variant: "destructive",
-        title: "Erro ao carregar subequipes",
-        description: "Não foi possível carregar a lista de subequipes."
-      })
-    } finally {
-      setLoadingSubteams(false)
-    }
-  }
-
-  // Função para carregar os cargos
-  const loadRoles = async () => {
-    setLoadingRoles(true)
-    try {
-      const { data, error } = await supabase
-        .from('roles')
-        .select('*')
-        .eq('company_id', companyId)
-        .order('title')
-      
-      if (error) throw error
-      setRoles(data || [])
-    } catch (error: any) {
-      console.error('Erro ao carregar cargos:', error.message || error)
-      toast({
-        variant: "destructive",
-        title: "Erro ao carregar cargos",
-        description: "Não foi possível carregar a lista de cargos."
-      })
-    } finally {
-      setLoadingRoles(false)
-    }
-  }
-
-  // Função para carregar os relacionamentos do funcionário
-  const loadEmployeeRelations = async (employeeId: string) => {
     setLoadingRelations(true)
     try {
       // Carrega o time do funcionário
@@ -306,7 +202,157 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
     } finally {
       setLoadingRelations(false)
     }
-  }
+  }, [supabase, toast, companyId, form])
+
+  // Função para carregar as equipes usando useCallback
+  const loadTeams = useCallback(async () => {
+    // Verificar se companyId é válido
+    if (!companyId) {
+      console.error('companyId inválido:', companyId);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar equipes",
+        description: "Identificador da empresa inválido."
+      });
+      setLoadingTeams(false);
+      return;
+    }
+
+    setLoadingTeams(true)
+    try {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('name')
+      
+      if (error) throw error
+      setTeams(data || [])
+    } catch (error: any) {
+      console.error('Erro ao carregar equipes:', error.message || error)
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar equipes",
+        description: "Não foi possível carregar a lista de equipes."
+      })
+    } finally {
+      setLoadingTeams(false)
+    }
+  }, [supabase, toast, companyId])
+
+  // Função para carregar as subequipes usando useCallback
+  const loadSubteams = useCallback(async () => {
+    setLoadingSubteams(true)
+    try {
+      const { data, error } = await supabase
+        .from('subteams')
+        .select('*')
+        .order('name')
+      
+      if (error) throw error
+      setSubteams(data || [])
+    } catch (error: any) {
+      console.error('Erro ao carregar subequipes:', error.message || error)
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar subequipes",
+        description: "Não foi possível carregar a lista de subequipes."
+      })
+    } finally {
+      setLoadingSubteams(false)
+    }
+  }, [supabase, toast])
+
+  // Função para carregar os cargos usando useCallback
+  const loadRoles = useCallback(async () => {
+    // Verificar se companyId é válido
+    if (!companyId) {
+      console.error('companyId inválido:', companyId);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar cargos",
+        description: "Identificador da empresa inválido."
+      });
+      setLoadingRoles(false);
+      return;
+    }
+
+    setLoadingRoles(true)
+    try {
+      const { data, error } = await supabase
+        .from('roles')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('title')
+      
+      if (error) throw error
+      setRoles(data || [])
+    } catch (error: any) {
+      console.error('Erro ao carregar cargos:', error.message || error)
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar cargos",
+        description: "Não foi possível carregar a lista de cargos."
+      })
+    } finally {
+      setLoadingRoles(false)
+    }
+  }, [supabase, toast, companyId])
+
+  // Filtra as subequipes quando a equipe é selecionada
+  useEffect(() => {
+    const teamId = form.watch("teamId")
+    if (teamId) {
+      const filtered = subteams.filter(subteam => subteam.team_id === teamId)
+      setFilteredSubteams(filtered)
+      
+      // Se não houver subequipes disponíveis, limpa o campo
+      if (filtered.length === 0) {
+        form.setValue("subteamId", "")
+      }
+      // Se a subequipe atual não pertence à equipe selecionada, limpa o campo
+      else if (form.watch("subteamId")) {
+        const currentSubteam = filtered.find(st => st.id === form.watch("subteamId"))
+        if (!currentSubteam) {
+          form.setValue("subteamId", "")
+        }
+      }
+    } else {
+      setFilteredSubteams([])
+      form.setValue("subteamId", "")
+    }
+  }, [form.watch("teamId"), subteams, form])
+
+  // Carrega os dados do funcionário quando o diálogo é aberto
+  useEffect(() => {
+    if (open) {
+      console.log("Dialog aberto com dados:", { 
+        employee, 
+        employeeId: employee?.id,
+        companyId,
+        hasEmployee: !!employee,
+        hasCompanyId: !!companyId
+      });
+      
+      if (employee) {
+        form.reset({
+          fullName: employee.full_name,
+          email: employee.email,
+          phone: employee.phone || "",
+          status: employee.status,
+          teamId: "",
+          subteamId: "",
+          roleId: "",
+        })
+
+        // Carrega as equipes, subequipes, cargos e relacionamentos do funcionário
+        loadTeams()
+        loadSubteams()
+        loadRoles()
+        loadEmployeeRelations(employee.id)
+      }
+    }
+  }, [open, employee, form, companyId, loadTeams, loadSubteams, loadRoles, loadEmployeeRelations])
 
   /**
    * Função para lidar com o envio do formulário
