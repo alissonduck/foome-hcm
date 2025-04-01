@@ -130,8 +130,8 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
       email: "",
       phone: "",
       status: "",
-      teamId: "",
-      subteamId: "",
+      teamId: "none",
+      subteamId: "none",
       roleId: "",
     },
   })
@@ -139,8 +139,14 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
   // Função para carregar os relacionamentos do funcionário usando useCallback
   const loadEmployeeRelations = useCallback(async (employeeId: string) => {
     // Verificar se employeeId e companyId são válidos
-    if (!employeeId || !companyId) {
-      console.error('employeeId ou companyId inválidos:', { employeeId, companyId });
+    if (!employeeId || employeeId === "undefined" || employeeId === "null" || !companyId) {
+      console.error('employeeId ou companyId inválidos:', { 
+        employeeId: employeeId || "undefined/null", 
+        companyId: companyId || "undefined/null",
+        employeeIdType: typeof employeeId,
+        companyIdType: typeof companyId
+      });
+      
       toast({
         variant: "destructive",
         title: "Erro ao carregar dados",
@@ -149,6 +155,11 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
       setLoadingRelations(false);
       return;
     }
+
+    console.log("Iniciando carregamento de relacionamentos com valores válidos:", {
+      employeeId,
+      companyId
+    });
 
     setLoadingRelations(true)
     try {
@@ -160,6 +171,7 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
         .maybeSingle()
       
       if (teamError) throw teamError
+      console.log("Time do funcionário:", teamData);
       setEmployeeTeam(teamData)
       if (teamData) {
         form.setValue("teamId", teamData.team_id)
@@ -173,6 +185,7 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
         .maybeSingle()
       
       if (subteamError) throw subteamError
+      console.log("Subequipe do funcionário:", subteamData);
       setEmployeeSubteam(subteamData)
       if (subteamData) {
         form.setValue("subteamId", subteamData.subteam_id)
@@ -188,6 +201,7 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
         .maybeSingle()
       
       if (roleError) throw roleError
+      console.log("Cargo do funcionário:", roleData);
       setEmployeeRole(roleData)
       if (roleData) {
         form.setValue("roleId", roleData.role_id)
@@ -302,57 +316,77 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
   // Filtra as subequipes quando a equipe é selecionada
   useEffect(() => {
     const teamId = form.watch("teamId")
-    if (teamId) {
+    if (teamId && teamId !== "none") {
       const filtered = subteams.filter(subteam => subteam.team_id === teamId)
       setFilteredSubteams(filtered)
       
       // Se não houver subequipes disponíveis, limpa o campo
       if (filtered.length === 0) {
-        form.setValue("subteamId", "")
+        form.setValue("subteamId", "none")
       }
       // Se a subequipe atual não pertence à equipe selecionada, limpa o campo
-      else if (form.watch("subteamId")) {
+      else if (form.watch("subteamId") && form.watch("subteamId") !== "none") {
         const currentSubteam = filtered.find(st => st.id === form.watch("subteamId"))
         if (!currentSubteam) {
-          form.setValue("subteamId", "")
+          form.setValue("subteamId", "none")
         }
       }
     } else {
       setFilteredSubteams([])
-      form.setValue("subteamId", "")
+      form.setValue("subteamId", "none")
     }
   }, [form.watch("teamId"), subteams, form])
 
   // Carrega os dados do funcionário quando o diálogo é aberto
   useEffect(() => {
+    console.log("=== DEBUG EmployeeEditDialog ===");
+    console.log("Estado do diálogo:", open);
+    console.log("Dados recebidos:", {
+      employee: employee ? `ID: ${employee.id}` : "undefined/null",
+      companyId: companyId || "undefined/null"
+    });
+    
     if (open) {
-      console.log("Dialog aberto com dados:", { 
-        employee, 
-        employeeId: employee?.id,
-        companyId,
-        hasEmployee: !!employee,
-        hasCompanyId: !!companyId
-      });
+      // Simplificar temporariamente para diagnóstico
+      console.log("Diálogo está aberto, tentando carregar dados...");
       
-      if (employee) {
-        form.reset({
-          fullName: employee.full_name,
-          email: employee.email,
-          phone: employee.phone || "",
-          status: employee.status,
-          teamId: "",
-          subteamId: "",
-          roleId: "",
-        })
-
-        // Carrega as equipes, subequipes, cargos e relacionamentos do funcionário
-        loadTeams()
-        loadSubteams()
-        loadRoles()
-        loadEmployeeRelations(employee.id)
+      try {
+        // Tenta carregar os dados básicos do formulário
+        if (employee) {
+          console.log("Carregando dados do funcionário para o formulário");
+          form.reset({
+            fullName: employee.full_name || "",
+            email: employee.email || "",
+            phone: employee.phone || "",
+            status: employee.status || "",
+            teamId: "none",
+            subteamId: "none",
+            roleId: "",
+          });
+        } else {
+          console.error("Objeto employee não está disponível");
+        }
+        
+        // Carrega equipes e cargos mesmo sem todas as validações
+        if (companyId) {
+          console.log("Tentando carregar dados relacionados com companyId:", companyId);
+          loadTeams();
+          loadSubteams();
+          loadRoles();
+          
+          if (employee && employee.id) {
+            console.log("Tentando carregar relacionamentos para funcionário ID:", employee.id);
+            const empId = String(employee.id);
+            loadEmployeeRelations(empId);
+          }
+        } else {
+          console.error("CompanyId não está disponível para carregar dados relacionados");
+        }
+      } catch (error: any) {
+        console.error("Erro ao processar abertura do diálogo:", error.message || error);
       }
     }
-  }, [open, employee, form, companyId, loadTeams, loadSubteams, loadRoles, loadEmployeeRelations])
+  }, [open, employee, companyId, form, loadTeams, loadSubteams, loadRoles, loadEmployeeRelations]);
 
   /**
    * Função para lidar com o envio do formulário
@@ -399,13 +433,14 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
               employee_id: employee.id,
               role_id: values.roleId,
               company_id: companyId,
-              is_primary: true
+              is_primary: true,
+              start_date: new Date().toISOString().split('T')[0] // Usando data atual como start_date
             })
         )
       }
 
       // Atualiza a equipe
-      if (values.teamId) {
+      if (values.teamId && values.teamId !== "none") {
         if (employeeTeam) {
           // Se já existe uma equipe, atualiza se for diferente
           if (employeeTeam.team_id !== values.teamId) {
@@ -435,7 +470,7 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
       }
 
       // Atualiza a subequipe
-      if (values.subteamId) {
+      if (values.subteamId && values.subteamId !== "none") {
         if (employeeSubteam) {
           // Se já existe uma subequipe, atualiza se for diferente
           if (employeeSubteam.subteam_id !== values.subteamId) {
@@ -648,7 +683,7 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">Nenhuma equipe</SelectItem>
+                            <SelectItem value="none">Nenhuma equipe</SelectItem>
                             {loadingTeams || loadingRelations ? (
                               <SelectItem value="loading" disabled>
                                 Carregando equipes...
@@ -688,12 +723,12 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">Nenhuma subequipe</SelectItem>
+                            <SelectItem value="none">Nenhuma subequipe</SelectItem>
                             {loadingSubteams || loadingRelations ? (
                               <SelectItem value="loading" disabled>
                                 Carregando subequipes...
                               </SelectItem>
-                            ) : !form.watch("teamId") ? (
+                            ) : !form.watch("teamId") || form.watch("teamId") === "none" ? (
                               <SelectItem value="no-team" disabled>
                                 Selecione uma equipe primeiro
                               </SelectItem>

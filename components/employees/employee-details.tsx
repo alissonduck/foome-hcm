@@ -3,7 +3,7 @@
 /**
  * Componente de detalhes do funcionário
  */
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -132,6 +132,12 @@ export default function EmployeeDetails({
     }
   }
 
+  // Função para abrir o diálogo de edição
+  const handleOpenEditDialog = () => {
+    console.log("DEBUG: Abrindo diálogo de edição", { employeeId: employee?.id, companyId });
+    setIsEditDialogOpen(true);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -143,7 +149,7 @@ export default function EmployeeDetails({
         </div>
         <div className="flex gap-2">
           {canEdit && (
-            <Button variant="outline" size="sm" onClick={() => setIsEditDialogOpen(true)} className="h-8">
+            <Button variant="outline" size="sm" onClick={handleOpenEditDialog} className="h-8">
               <Edit className="h-4 w-4 mr-2" />
               editar
             </Button>
@@ -288,7 +294,12 @@ export default function EmployeeDetails({
       </AlertDialog>
 
       {/* Diálogo de edição */}
-      <EmployeeEditDialog employee={employee} open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} companyId={companyId} />
+      <EmployeeEditDialog 
+        employee={employee} 
+        open={isEditDialogOpen} 
+        onOpenChange={setIsEditDialogOpen} 
+        companyId={companyId} 
+      />
     </div>
   )
 }
