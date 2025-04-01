@@ -154,10 +154,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       })
     }
 
-    // Busca o cargo atual para verificar se existe e mesclar os dados
-    let existingRole;
+    // Busca o cargo atual para verificar se existe
     try {
-      existingRole = await roleService.getRoleDetails(roleId)
+      await roleService.getRoleDetails(roleId)
     } catch (error) {
       return errorResponse({
         status: HttpStatus.NOT_FOUND,
@@ -166,29 +165,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       })
     }
 
-    // Mescla os dados existentes com os novos dados
-    const mergedData = {
-      ...existingRole,
-      ...validationResult.data,
-      // Garante que os campos aninhados sejam atualizados corretamente
-      courses: validationResult.data.courses !== undefined ? validationResult.data.courses : existingRole.courses,
-      complementary_courses: validationResult.data.complementary_courses !== undefined 
-        ? validationResult.data.complementary_courses 
-        : existingRole.complementary_courses,
-      technical_skills: validationResult.data.technical_skills !== undefined 
-        ? validationResult.data.technical_skills 
-        : existingRole.technical_skills,
-      behavioral_skills: validationResult.data.behavioral_skills !== undefined 
-        ? validationResult.data.behavioral_skills 
-        : existingRole.behavioral_skills,
-      languages: validationResult.data.languages !== undefined 
-        ? validationResult.data.languages 
-        : existingRole.languages,
-    }
-
-    // Atualiza o cargo no banco de dados com os dados mesclados
+    // Atualiza diretamente com os dados validados pelo schema
+    // O roleService.updateRole já trata corretamente os campos relacionados
     try {
-      const role = await roleService.updateRole(roleId, mergedData)
+      const role = await roleService.updateRole(roleId, validationResult.data)
       
       // Retorna o cargo atualizado
       return successResponse({
