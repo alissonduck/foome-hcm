@@ -32,6 +32,7 @@ import { DependentForm } from "@/components/dependents/dependent-form"
 import { format } from "date-fns"
 import { pt } from "date-fns/locale"
 import { useAddress } from "@/hooks/use-address"
+import { createEmployeeAddress } from "@/server/actions/address-actions"
 
 /**
  * Props para o componente EmployeeAdmissionForm
@@ -339,7 +340,7 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
         throw new Error(error.message)
       }
 
-      // Insere o endereço do funcionário na nova tabela
+      // Insere o endereço do funcionário na nova tabela usando server action
       const addressData = {
         employee_id: data.id,
         street: values.street,
@@ -352,10 +353,10 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
         city_id: values.cityId
       }
 
-      const { error: addressError } = await supabase.from("employee_addresses").insert(addressData)
-
-      if (addressError) {
-        console.error("Erro ao salvar endereço:", addressError)
+      const addressResponse = await createEmployeeAddress(addressData)
+      
+      if (addressResponse.error) {
+        console.error("Erro ao salvar endereço:", addressResponse.error)
         // Continua mesmo com erro no endereço, mas loga o erro
       }
 

@@ -6,7 +6,6 @@
  */
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import { 
   Country, 
@@ -16,6 +15,15 @@ import {
   EmployeeAddressUpdate,
   EmployeeAddressWithRelations 
 } from "@/lib/types/address"
+import {
+  getCountries,
+  getStates,
+  getCities,
+  getEmployeeAddresses,
+  createEmployeeAddress,
+  updateEmployeeAddress,
+  deleteEmployeeAddress
+} from "@/server/actions/address-actions"
 
 /**
  * Hook para gerenciar endereços
@@ -24,7 +32,6 @@ import {
 export function useAddress() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
-  const supabase = createClient()
   const [selectedCountryId, setSelectedCountryId] = useState<string | null>(null)
   const [selectedStateId, setSelectedStateId] = useState<string | null>(null)
 
@@ -36,13 +43,11 @@ export function useAddress() {
   } = useQuery<Country[]>({
     queryKey: ["countries"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("countries")
-        .select("*")
-        .order("name")
-
-      if (error) throw error
-      return data || []
+      const response = await getCountries()
+      if (response.error) {
+        throw new Error(response.error)
+      }
+      return response.data || []
     }
   })
 
@@ -56,14 +61,11 @@ export function useAddress() {
     queryFn: async () => {
       if (!selectedCountryId) return []
 
-      const { data, error } = await supabase
-        .from("states")
-        .select("*")
-        .eq("country_id", selectedCountryId)
-        .order("name")
-
-      if (error) throw error
-      return data || []
+      const response = await getStates(selectedCountryId)
+      if (response.error) {
+        throw new Error(response.error)
+      }
+      return response.data || []
     },
     enabled: !!selectedCountryId
   })
@@ -78,14 +80,11 @@ export function useAddress() {
     queryFn: async () => {
       if (!selectedStateId) return []
 
-      const { data, error } = await supabase
-        .from("cities")
-        .select("*")
-        .eq("state_id", selectedStateId)
-        .order("name")
-
-      if (error) throw error
-      return data || []
+      const response = await getCities(selectedStateId)
+      if (response.error) {
+        throw new Error(response.error)
+      }
+      return response.data || []
     },
     enabled: !!selectedStateId
   })
@@ -94,40 +93,29 @@ export function useAddress() {
   const useEmployeeAddresses = (employeeId: string) => useQuery<EmployeeAddressWithRelations[]>({
     queryKey: ["employee_addresses", employeeId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("employee_addresses")
-        .select(`
-          *,
-          country:countries(*),
-          state:states(*),
-          city:cities(*)
-        `)
-        .eq("employee_id", employeeId)
+      if (!employeeId) return []
 
-      if (error) throw error
-      return data || []
+      const response = await getEmployeeAddresses(employeeId)
+      if (response.error) {
+        throw new Error(response.error)
+      }
+      return response.data || []
     },
     enabled: !!employeeId
   })
 
   // Criação de endereço
-  const createEmployeeAddress = useMutation({
+  const createAddress = useMutation({
     mutationFn: async (address: EmployeeAddressInsert) => {
-      const { data, error } = await supabase
-        .from("employee_addresses")
-        .insert([address])
-        .select(`
-          *,
-          country:countries(*),
-          state:states(*),
-          city:cities(*)
-        `)
-        .single()
-
-      if (error) throw error
-      return data
+      const response = await createEmployeeAddress(address)
+      if (response.error) {
+        throw new Error(response.error)
+      }
+      return response.data
     },
     onSuccess: (data, variables) => {
+      if (!data) return
+      
       toast({
         title: "Endereço adicionado",
         description: "O endereço foi adicionado com sucesso."
@@ -145,24 +133,17 @@ export function useAddress() {
   })
 
   // Atualização de endereço
-  const updateEmployeeAddress = useMutation({
+  const updateAddress = useMutation({
     mutationFn: async ({ id, data }: { id: string, data: EmployeeAddressUpdate }) => {
-      const { data: updatedData, error } = await supabase
-        .from("employee_addresses")
-        .update(data)
-        .eq("id", id)
-        .select(`
-          *,
-          country:countries(*),
-          state:states(*),
-          city:cities(*)
-        `)
-        .single()
-
-      if (error) throw error
-      return updatedData
+      const response = await updateEmployeeAddress(id, data)
+      if (response.error) {
+        throw new Error(response.error)
+      }
+      return response.data
     },
     onSuccess: (data) => {
+      if (!data) return
+      
       toast({
         title: "Endereço atualizado",
         description: "O endereço foi atualizado com sucesso."
@@ -180,14 +161,12 @@ export function useAddress() {
   })
 
   // Remoção de endereço
-  const deleteEmployeeAddress = useMutation({
+  const deleteAddress = useMutation({
     mutationFn: async ({ id, employeeId }: { id: string, employeeId: string }) => {
-      const { error } = await supabase
-        .from("employee_addresses")
-        .delete()
-        .eq("id", id)
-
-      if (error) throw error
+      const response = await deleteEmployeeAddress(id)
+      if (response.error) {
+        throw new Error(response.error)
+      }
       return { id, employeeId }
     },
     onSuccess: ({ employeeId }) => {
@@ -231,13 +210,13 @@ export function useAddress() {
     citiesError,
     
     // Mutações
-    createEmployeeAddress,
-    updateEmployeeAddress,
-    deleteEmployeeAddress,
+    createEmployeeAddress: createAddress,
+    updateEmployeeAddress: updateAddress,
+    deleteEmployeeAddress: deleteAddress,
     
     // Status das mutações
-    isCreating: createEmployeeAddress.isPending,
-    isUpdating: updateEmployeeAddress.isPending,
-    isDeleting: deleteEmployeeAddress.isPending
+    isCreating: createAddress.isPending,
+    isUpdating: updateAddress.isPending,
+    isDeleting: deleteAddress.isPending
   }
 } 
