@@ -33,6 +33,7 @@ import { format } from "date-fns"
 import { pt } from "date-fns/locale"
 import { useAddress } from "@/hooks/use-address"
 import { createEmployeeAddress } from "@/server/actions/address-actions"
+import { PhotoUpload } from "@/components/photos/photo-upload"
 
 /**
  * Props para o componente EmployeeAdmissionForm
@@ -411,6 +412,8 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
     } else if (activeTab === "address") {
       setActiveTab("financial")
     } else if (activeTab === "financial") {
+      setActiveTab("photos")
+    } else if (activeTab === "photos") {
       setActiveTab("dependents")
     }
   }
@@ -425,8 +428,10 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
       setActiveTab("professional")
     } else if (activeTab === "financial") {
       setActiveTab("address")
-    } else if (activeTab === "dependents") {
+    } else if (activeTab === "photos") {
       setActiveTab("financial")
+    } else if (activeTab === "dependents") {
+      setActiveTab("photos")
     }
   }
 
@@ -458,11 +463,12 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-6">
                   <TabsTrigger value="personal">Dados Pessoais</TabsTrigger>
                   <TabsTrigger value="professional">Dados Profissionais</TabsTrigger>
                   <TabsTrigger value="address">Endereço</TabsTrigger>
                   <TabsTrigger value="financial">Dados Financeiros</TabsTrigger>
+                  <TabsTrigger value="photos">Fotos</TabsTrigger>
                   <TabsTrigger value="dependents">Dependentes</TabsTrigger>
                 </TabsList>
 
@@ -1156,6 +1162,46 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                   </div>
 
                   <div className="flex justify-between pt-4">
+                    <Button type="button" variant="outline" onClick={prevTab}>
+                      Voltar
+                    </Button>
+                    <Button type="button" onClick={nextTab}>
+                      Próximo
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                {/* Nova aba de Fotos */}
+                <TabsContent value="photos" className="space-y-4 pt-4">
+                  <div className="flex flex-col space-y-4">
+                    <h3 className="text-lg font-medium">Foto do Funcionário</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Adicione uma foto do funcionário para identificação. A foto deve ser nítida, 
+                      recente, com fundo neutro e que mostre claramente o rosto do funcionário.
+                    </p>
+                    
+                    <div className="flex flex-col items-center md:flex-row md:items-start md:gap-8">
+                      <div className="w-full max-w-[250px] mb-6 md:mb-0">
+                        <PhotoUpload />
+                      </div>
+                      
+                      <div className="w-full space-y-4">
+                        <div className="bg-muted p-4 rounded-md">
+                          <h4 className="font-medium mb-2">Orientações para a foto</h4>
+                          <ul className="text-sm space-y-1 list-disc pl-5">
+                            <li>Use uma foto recente e nítida</li>
+                            <li>Prefira fundo neutro e uniforme</li>
+                            <li>O rosto deve estar bem visível e centralizado</li>
+                            <li>Evite óculos escuros ou chapéus</li>
+                            <li>Formato JPEG ou PNG</li>
+                            <li>Tamanho máximo: 5MB</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between pt-6">
                     <Button type="button" variant="outline" onClick={prevTab}>
                       Voltar
                     </Button>

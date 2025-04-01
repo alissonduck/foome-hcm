@@ -341,6 +341,38 @@ export type Database = {
           },
         ]
       }
+      employee_photos: {
+        Row: {
+          admission_photo: string | null
+          created_at: string | null
+          employee_id: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          admission_photo?: string | null
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          admission_photo?: string | null
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_photos_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_roles: {
         Row: {
           company_id: string
