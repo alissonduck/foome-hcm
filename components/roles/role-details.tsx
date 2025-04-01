@@ -34,17 +34,20 @@ interface RoleDetailsProps {
 
 export function RoleDetails({ role }: RoleDetailsProps) {
   const router = useRouter()
-  const { toggleRoleActive, deleteRole, isTogglingRoleActive, isDeletingRole } = useRoles()
+  const { useToggleRoleActiveMutation, useDeleteRoleMutation } = useRoles()
+  const toggleRoleMutation = useToggleRoleActiveMutation()
+  const deleteRoleMutation = useDeleteRoleMutation()
+  
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isToggleDialogOpen, setIsToggleDialogOpen] = useState(false)
 
   const handleToggleActive = () => {
-    toggleRoleActive({ roleId: role.id, active: !role.active })
+    toggleRoleMutation.mutate({ roleId: role.id, active: !role.active })
     setIsToggleDialogOpen(false)
   }
 
   const handleDelete = () => {
-    deleteRole(role.id)
+    deleteRoleMutation.mutate(role.id)
     setIsDeleteDialogOpen(false)
   }
 
@@ -63,7 +66,7 @@ export function RoleDetails({ role }: RoleDetailsProps) {
             variant="outline"
             size="sm"
             onClick={() => setIsToggleDialogOpen(true)}
-            disabled={isTogglingRoleActive}
+            disabled={toggleRoleMutation.isPending}
           >
             {role.active ? (
               <>
@@ -85,7 +88,7 @@ export function RoleDetails({ role }: RoleDetailsProps) {
             variant="destructive"
             size="sm"
             onClick={() => setIsDeleteDialogOpen(true)}
-            disabled={isDeletingRole || role.employees_count > 0}
+            disabled={deleteRoleMutation.isPending || role.employees_count > 0}
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Excluir
@@ -103,7 +106,7 @@ export function RoleDetails({ role }: RoleDetailsProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Status</p>
-                <p className="font-medium">
+                <div className="font-medium">
                   {role.active ? (
                     <Badge variant="default">Ativo</Badge>
                   ) : (
@@ -111,7 +114,7 @@ export function RoleDetails({ role }: RoleDetailsProps) {
                       Inativo
                     </Badge>
                   )}
-                </p>
+                </div>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Tipo de Contrato</p>

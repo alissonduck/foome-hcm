@@ -9,6 +9,8 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus, Trash2, Save } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
@@ -42,6 +44,7 @@ interface RoleFormProps {
 
 export function RoleForm({ companyId, initialData, isEditing = false }: RoleFormProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { useCreateRoleMutation, useUpdateRoleMutation } = useRoles()
   const createMutation = useCreateRoleMutation()
   const updateMutation = useUpdateRoleMutation()
@@ -162,31 +165,84 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
     }
   }, [initialData])
 
-  const onSubmit = (data: RoleFormValues) => {
-    const formData = {
-      ...data,
-      cnh: data.cnh === "no_cnh" ? null : data.cnh,
-      team_id: data.team_id === "none" ? null : data.team_id,
-      courses,
-      complementary_courses: complementaryCourses,
-      technical_skills: technicalSkills.map(skill => ({
-        ...skill,
-        level: skill.level === "none" ? null : skill.level
-      })),
-      behavioral_skills: behavioralSkills.map(skill => ({
-        ...skill,
-        level: skill.level === "none" ? null : skill.level
-      })),
-      languages: languages.map(lang => ({
-        ...lang,
-        level: lang.level === "none" ? null : lang.level
-      })),
-    }
+  const onSubmit = async (data: RoleFormValues) => {
+    try {
+      // Criar objeto com todos os dados para enviar ao servidor
+      const formData = {
+        ...data,
+        cnh: data.cnh === "no_cnh" ? null : data.cnh,
+        team_id: data.team_id === "none" ? null : data.team_id,
+        courses,
+        complementary_courses: complementaryCourses,
+        technical_skills: technicalSkills.map(skill => ({
+          ...skill,
+          level: skill.level === "none" ? null : skill.level
+        })),
+        behavioral_skills: behavioralSkills.map(skill => ({
+          ...skill,
+          level: skill.level === "none" ? null : skill.level
+        })),
+        languages: languages.map(lang => ({
+          ...lang,
+          level: lang.level === "none" ? null : lang.level
+        })),
+      }
 
-    if (isEditing && initialData?.id) {
-      updateMutation.mutate({ roleId: initialData.id, params: formData })
-    } else {
-      createMutation.mutate(formData)
+      if (isEditing && initialData?.id) {
+        // Para edição, usamos uma chamada PUT para a API
+        const response = await fetch(`/api/roles/${initialData.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+          credentials: 'include', // Importante: inclui cookies na requisição
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Erro ao atualizar cargo');
+        }
+        
+        // Informamos ao React Query que os dados mudaram
+        queryClient.invalidateQueries({ queryKey: ["roles", formData.company_id] });
+        queryClient.invalidateQueries({ queryKey: ["role", initialData.id] });
+        
+        // Mostrar mensagem de sucesso
+        toast.success("Cargo atualizado com sucesso!");
+        
+        // Redirecionar para a página de detalhes do cargo
+        router.push(`/dashboard/roles/${initialData.id}`);
+      } else {
+        // Para criação de novo cargo, usamos uma chamada POST para a API
+        const response = await fetch('/api/roles', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+          credentials: 'include', // Importante: inclui cookies na requisição
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Erro ao criar cargo');
+        }
+        
+        const data = await response.json();
+        
+        // Informamos ao React Query que os dados mudaram
+        queryClient.invalidateQueries({ queryKey: ["roles", formData.company_id] });
+        
+        // Mostrar mensagem de sucesso
+        toast.success("Cargo criado com sucesso!");
+        
+        // Redirecionar para a página de cargos
+        router.push('/dashboard/roles');
+      }
+    } catch (error) {
+      console.error("Erro ao salvar cargo:", error);
+      toast.error(`Erro ao salvar cargo: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
   }
 

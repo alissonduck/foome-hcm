@@ -216,27 +216,129 @@ export class roleService {
    * @param role Dados do cargo
    * @returns Cargo criado
    */
-  static async createRole(role: RoleInsert): Promise<Role> {
+  static async createRole(role: any): Promise<Role> {
     try {
       const supabase = await createClient()
       
+      // Extrair dados aninhados antes de inserir o cargo principal
+      const { 
+        courses, 
+        complementary_courses, 
+        technical_skills, 
+        behavioral_skills, 
+        languages, 
+        ...roleData 
+      } = role
+      
+      // Inserção básica do cargo
       const { data, error } = await supabase
-      .from("roles")
-        .insert([role])
-      .select()
-      .single()
+        .from("roles")
+        .insert([roleData])
+        .select()
+        .single()
 
       if (error) {
         console.error("Erro ao criar cargo:", error)
         throw error
       }
       
+      if (!data) {
+        throw new Error("Não foi possível criar o cargo: nenhum dado retornado")
+      }
+      
+      const roleId = data.id
+      
+      // Inserir cursos, se existirem
+      if (courses && courses.length > 0) {
+        const coursesToInsert = courses.map((course: any) => ({
+          role_id: roleId,
+          name: course.name,
+          is_required: course.is_required || false
+        }))
+        
+        const { error: coursesError } = await supabase
+          .from("role_courses")
+          .insert(coursesToInsert)
+        
+        if (coursesError) {
+          console.error("Erro ao inserir cursos:", coursesError)
+        }
+      }
+      
+      // Inserir cursos complementares, se existirem
+      if (complementary_courses && complementary_courses.length > 0) {
+        const coursesToInsert = complementary_courses.map((course: any) => ({
+          role_id: roleId,
+          name: course.name
+        }))
+        
+        const { error: coursesError } = await supabase
+          .from("role_complementary_courses")
+          .insert(coursesToInsert)
+        
+        if (coursesError) {
+          console.error("Erro ao inserir cursos complementares:", coursesError)
+        }
+      }
+      
+      // Inserir habilidades técnicas, se existirem
+      if (technical_skills && technical_skills.length > 0) {
+        const skillsToInsert = technical_skills.map((skill: any) => ({
+          role_id: roleId,
+          name: skill.name,
+          level: skill.level
+        }))
+        
+        const { error: skillsError } = await supabase
+          .from("role_technical_skills")
+          .insert(skillsToInsert)
+        
+        if (skillsError) {
+          console.error("Erro ao inserir habilidades técnicas:", skillsError)
+        }
+      }
+      
+      // Inserir habilidades comportamentais, se existirem
+      if (behavioral_skills && behavioral_skills.length > 0) {
+        const skillsToInsert = behavioral_skills.map((skill: any) => ({
+          role_id: roleId,
+          name: skill.name,
+          level: skill.level
+        }))
+        
+        const { error: skillsError } = await supabase
+          .from("role_behavioral_skills")
+          .insert(skillsToInsert)
+        
+        if (skillsError) {
+          console.error("Erro ao inserir habilidades comportamentais:", skillsError)
+        }
+      }
+      
+      // Inserir idiomas, se existirem
+      if (languages && languages.length > 0) {
+        const languagesToInsert = languages.map((language: any) => ({
+          role_id: roleId,
+          name: language.name,
+          level: language.level,
+          is_required: language.is_required || false
+        }))
+        
+        const { error: languagesError } = await supabase
+          .from("role_languages")
+          .insert(languagesToInsert)
+        
+        if (languagesError) {
+          console.error("Erro ao inserir idiomas:", languagesError)
+        }
+      }
+      
       return data
     } catch (error) {
       console.error("Erro ao criar cargo:", error)
-      throw new Error(`Não foi possível criar o cargo: ${JSON.stringify(error)}`)
-      }
+      throw new Error(`Não foi possível criar o cargo: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
     }
+  }
 
   /**
    * Atualiza um cargo existente
@@ -244,13 +346,24 @@ export class roleService {
    * @param role Dados atualizados do cargo
    * @returns Cargo atualizado
    */
-  static async updateRole(id: string, role: RoleUpdate): Promise<Role> {
+  static async updateRole(id: string, role: any): Promise<Role> {
     try {
       const supabase = await createClient()
       
+      // Extrair dados aninhados antes de atualizar o cargo principal
+      const { 
+        courses, 
+        complementary_courses, 
+        technical_skills, 
+        behavioral_skills, 
+        languages, 
+        ...roleData 
+      } = role
+
+      // Atualiza os dados básicos do cargo
       const { data, error } = await supabase
         .from("roles")
-        .update(role)
+        .update(roleData)
         .eq("id", id)
         .select()
         .single()
@@ -260,12 +373,168 @@ export class roleService {
         throw error
       }
       
+      if (!data) {
+        throw new Error("Não foi possível atualizar o cargo: nenhum dado retornado")
+      }
+      
+      // ATUALIZAÇÃO DOS DADOS RELACIONADOS
+      
+      // 1. Atualiza os cursos, se existirem
+      if (courses !== undefined) {
+        // Primeiro, exclui todos os cursos existentes
+        const { error: deleteCoursesError } = await supabase
+          .from("role_courses")
+          .delete()
+          .eq("role_id", id)
+          
+        if (deleteCoursesError) {
+          console.error("Erro ao excluir cursos existentes:", deleteCoursesError)
+        }
+        
+        // Depois, insere os novos cursos
+        if (courses && courses.length > 0) {
+          const coursesToInsert = courses.map((course: any) => ({
+            role_id: id,
+            name: course.name,
+            is_required: course.is_required || false
+          }))
+          
+          const { error: insertCoursesError } = await supabase
+            .from("role_courses")
+            .insert(coursesToInsert)
+          
+          if (insertCoursesError) {
+            console.error("Erro ao inserir novos cursos:", insertCoursesError)
+          }
+        }
+      }
+      
+      // 2. Atualiza os cursos complementares, se existirem
+      if (complementary_courses !== undefined) {
+        // Primeiro, exclui todos os cursos complementares existentes
+        const { error: deleteCoursesError } = await supabase
+          .from("role_complementary_courses")
+          .delete()
+          .eq("role_id", id)
+          
+        if (deleteCoursesError) {
+          console.error("Erro ao excluir cursos complementares existentes:", deleteCoursesError)
+        }
+        
+        // Depois, insere os novos cursos complementares
+        if (complementary_courses && complementary_courses.length > 0) {
+          const coursesToInsert = complementary_courses.map((course: any) => ({
+            role_id: id,
+            name: course.name
+          }))
+          
+          const { error: insertCoursesError } = await supabase
+            .from("role_complementary_courses")
+            .insert(coursesToInsert)
+          
+          if (insertCoursesError) {
+            console.error("Erro ao inserir novos cursos complementares:", insertCoursesError)
+          }
+        }
+      }
+      
+      // 3. Atualiza as habilidades técnicas, se existirem
+      if (technical_skills !== undefined) {
+        // Primeiro, exclui todas as habilidades técnicas existentes
+        const { error: deleteSkillsError } = await supabase
+          .from("role_technical_skills")
+          .delete()
+          .eq("role_id", id)
+          
+        if (deleteSkillsError) {
+          console.error("Erro ao excluir habilidades técnicas existentes:", deleteSkillsError)
+        }
+        
+        // Depois, insere as novas habilidades técnicas
+        if (technical_skills && technical_skills.length > 0) {
+          const skillsToInsert = technical_skills.map((skill: any) => ({
+            role_id: id,
+            name: skill.name,
+            level: skill.level
+          }))
+          
+          const { error: insertSkillsError } = await supabase
+            .from("role_technical_skills")
+            .insert(skillsToInsert)
+          
+          if (insertSkillsError) {
+            console.error("Erro ao inserir novas habilidades técnicas:", insertSkillsError)
+          }
+        }
+      }
+      
+      // 4. Atualiza as habilidades comportamentais, se existirem
+      if (behavioral_skills !== undefined) {
+        // Primeiro, exclui todas as habilidades comportamentais existentes
+        const { error: deleteSkillsError } = await supabase
+          .from("role_behavioral_skills")
+          .delete()
+          .eq("role_id", id)
+          
+        if (deleteSkillsError) {
+          console.error("Erro ao excluir habilidades comportamentais existentes:", deleteSkillsError)
+        }
+        
+        // Depois, insere as novas habilidades comportamentais
+        if (behavioral_skills && behavioral_skills.length > 0) {
+          const skillsToInsert = behavioral_skills.map((skill: any) => ({
+            role_id: id,
+            name: skill.name,
+            level: skill.level
+          }))
+          
+          const { error: insertSkillsError } = await supabase
+            .from("role_behavioral_skills")
+            .insert(skillsToInsert)
+          
+          if (insertSkillsError) {
+            console.error("Erro ao inserir novas habilidades comportamentais:", insertSkillsError)
+          }
+        }
+      }
+      
+      // 5. Atualiza os idiomas, se existirem
+      if (languages !== undefined) {
+        // Primeiro, exclui todos os idiomas existentes
+        const { error: deleteLanguagesError } = await supabase
+          .from("role_languages")
+          .delete()
+          .eq("role_id", id)
+          
+        if (deleteLanguagesError) {
+          console.error("Erro ao excluir idiomas existentes:", deleteLanguagesError)
+        }
+        
+        // Depois, insere os novos idiomas
+        if (languages && languages.length > 0) {
+          const languagesToInsert = languages.map((language: any) => ({
+            role_id: id,
+            name: language.name,
+            level: language.level,
+            is_required: language.is_required || false
+          }))
+          
+          const { error: insertLanguagesError } = await supabase
+            .from("role_languages")
+            .insert(languagesToInsert)
+          
+          if (insertLanguagesError) {
+            console.error("Erro ao inserir novos idiomas:", insertLanguagesError)
+          }
+        }
+      }
+      
       return data
     } catch (error) {
       console.error("Erro ao atualizar cargo:", error)
-      throw new Error(`Não foi possível atualizar o cargo: ${JSON.stringify(error)}`)
-      }
+      throw new Error(`Não foi possível atualizar o cargo: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
     }
+  }
 
   /**
    * Remove um cargo
