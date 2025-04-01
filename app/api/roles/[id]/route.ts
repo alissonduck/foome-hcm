@@ -12,7 +12,7 @@ import { isAuthenticated, isAdmin } from "@/lib/auth-utils-server"
  * GET - Obtém um cargo específico com seus detalhes
  * Retorna os dados completos de um cargo pelo seu ID
  */
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Verifica se o usuário está autenticado
     if (!(await isAuthenticated())) {
@@ -23,7 +23,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       })
     }
 
-    const roleId = params.id
+    // Aguarda a resolução dos parâmetros da rota
+    const resolvedParams = await params
+    const roleId = resolvedParams.id
 
     // Busca o cargo no banco de dados com todos os detalhes
     const role = await roleService.getRoleDetails(roleId)
@@ -55,7 +57,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
  * PUT - Atualiza completamente um cargo existente
  * Substitui todos os dados de um cargo pelo seu ID
  */
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Verifica se o usuário é administrador
     if (!(await isAdmin())) {
@@ -66,7 +68,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       })
     }
 
-    const roleId = params.id
+    // Aguarda a resolução dos parâmetros da rota
+    const resolvedParams = await params
+    const roleId = resolvedParams.id
 
     // Extrai os dados do corpo da requisição
     const data = await req.json()
@@ -125,7 +129,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
  * PATCH - Atualiza parcialmente um cargo existente
  * Permite modificar apenas alguns campos de um cargo pelo seu ID
  */
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Verifica se o usuário é administrador
     if (!(await isAdmin())) {
@@ -136,7 +140,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       })
     }
 
-    const roleId = params.id
+    // Aguarda a resolução dos parâmetros da rota
+    const resolvedParams = await params
+    const roleId = resolvedParams.id
 
     // Extrai os dados do corpo da requisição
     const data = await req.json()
@@ -197,7 +203,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
  * DELETE - Remove um cargo existente
  * Exclui um cargo pelo seu ID
  */
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Verifica se o usuário é administrador
     if (!(await isAdmin())) {
@@ -208,7 +214,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       })
     }
 
-    const roleId = params.id
+    // Aguarda a resolução dos parâmetros da rota
+    const resolvedParams = await params
+    const roleId = resolvedParams.id
 
     // Exclui o cargo do banco de dados
     const success = await roleService.deleteRole(roleId)
