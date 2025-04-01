@@ -11,17 +11,21 @@ import { createClient } from "@/lib/supabase/server"
 import { EmployeeFilters, EmployeeWithCompany, EmployeeWithRole, EmployeeInsert, EmployeeUpdate } from "@/lib/types/employees"
 import { getCurrentCompany } from "@/lib/auth-utils-server"
 import { employeeCreateSchema, employeeUpdateSchema } from "@/lib/schemas/employee-schema"
+import { constructServerResponse, ServerResponse } from "@/lib/utils/server-response"
 
 /**
  * Obtém todos os funcionários da empresa atual
  * @returns Lista de funcionários
  */
-export async function getEmployees() {
+export async function getEmployees(): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -44,10 +48,17 @@ export async function getEmployees() {
       throw error
     }
     
-    return data as unknown as EmployeeWithCompany[]
+    return constructServerResponse({
+      success: true,
+      data: data as unknown as EmployeeWithCompany[],
+      message: "Funcionários obtidos com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar funcionários:", error)
-    throw new Error(`Não foi possível buscar os funcionários: ${JSON.stringify(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar os funcionários: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -56,16 +67,22 @@ export async function getEmployees() {
  * @param employeeId ID do funcionário
  * @returns Funcionário
  */
-export async function getEmployee(employeeId: string) {
+export async function getEmployee(employeeId: string): Promise<ServerResponse> {
   try {
     if (!employeeId) {
-      throw new Error("ID do funcionário não fornecido")
+      return constructServerResponse({
+        success: false,
+        error: "ID do funcionário não fornecido"
+      })
     }
     
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -104,13 +121,20 @@ export async function getEmployee(employeeId: string) {
       console.error("Erro ao buscar cargos:", rolesError)
     }
     
-    return {
-      ...employee,
-      roles: roles || []
-    }
+    return constructServerResponse({
+      success: true,
+      data: {
+        ...employee,
+        roles: roles || []
+      },
+      message: "Funcionário obtido com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar funcionário:", error)
-    throw new Error(`Não foi possível buscar o funcionário: ${JSON.stringify(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar o funcionário: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -118,16 +142,22 @@ export async function getEmployee(employeeId: string) {
  * Cria um novo funcionário
  * @param formData Dados do formulário do funcionário
  */
-export async function createEmployee(formData: FormData) {
+export async function createEmployee(formData: FormData): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem criar funcionários")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem criar funcionários"
+      })
     }
     
     const data = Object.fromEntries(formData.entries())
@@ -143,7 +173,10 @@ export async function createEmployee(formData: FormData) {
     
     if (!validationResult.success) {
       console.error("Erro de validação:", validationResult.error.format())
-      throw new Error(`Dados inválidos: ${JSON.stringify(validationResult.error.format())}`)
+      return constructServerResponse({
+        success: false,
+        error: `Dados inválidos: ${JSON.stringify(validationResult.error.format())}`
+      })
     }
     
     const supabase = await createClient()
@@ -162,13 +195,17 @@ export async function createEmployee(formData: FormData) {
     // Revalida as páginas relevantes
     revalidatePath("/dashboard/employees")
     
-    return { success: true, employee }
+    return constructServerResponse({
+      success: true,
+      data: employee,
+      message: "Funcionário criado com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao criar funcionário:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao criar funcionário" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao criar funcionário"
+    })
   }
 }
 
@@ -177,16 +214,22 @@ export async function createEmployee(formData: FormData) {
  * @param employeeId ID do funcionário
  * @param formData Dados do formulário do funcionário
  */
-export async function updateEmployee(employeeId: string, formData: FormData) {
+export async function updateEmployee(employeeId: string, formData: FormData): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem atualizar funcionários")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem atualizar funcionários"
+      })
     }
     
     const data = Object.fromEntries(formData.entries())
@@ -196,24 +239,30 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
     
     if (!validationResult.success) {
       console.error("Erro de validação:", validationResult.error.format())
-      throw new Error(`Dados inválidos: ${JSON.stringify(validationResult.error.format())}`)
+      return constructServerResponse({
+        success: false,
+        error: `Dados inválidos: ${JSON.stringify(validationResult.error.format())}`
+      })
     }
     
     const supabase = await createClient()
     
-    // Verifica se o funcionário existe e pertence à empresa atual
-    const { data: existingEmployee } = await supabase
+    // Confirma que o funcionário existe e pertence à empresa
+    const { data: existingEmployee, error: findError } = await supabase
       .from("employees")
       .select("id, company_id")
       .eq("id", employeeId)
       .eq("company_id", company.id)
       .single()
     
-    if (!existingEmployee) {
-      throw new Error("Funcionário não encontrado ou não pertence à sua empresa")
+    if (findError || !existingEmployee) {
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado ou não pertence à sua empresa"
+      })
     }
     
-    const { data: employee, error } = await supabase
+    const { data: updated, error } = await supabase
       .from("employees")
       .update(validationResult.data)
       .eq("id", employeeId)
@@ -229,13 +278,17 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
     revalidatePath("/dashboard/employees")
     revalidatePath(`/dashboard/employees/${employeeId}`)
     
-    return { success: true, employee }
+    return constructServerResponse({
+      success: true,
+      data: updated,
+      message: "Funcionário atualizado com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao atualizar funcionário:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao atualizar funcionário" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao atualizar funcionário"
+    })
   }
 }
 
@@ -244,33 +297,42 @@ export async function updateEmployee(employeeId: string, formData: FormData) {
  * @param employeeId ID do funcionário
  * @param status Novo status
  */
-export async function updateEmployeeStatus(employeeId: string, status: string) {
+export async function updateEmployeeStatus(employeeId: string, status: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem atualizar o status de funcionários")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem atualizar o status de funcionários"
+      })
     }
     
     const supabase = await createClient()
     
-    // Verifica se o funcionário existe e pertence à empresa atual
-    const { data: existingEmployee } = await supabase
+    // Confirma que o funcionário existe e pertence à empresa
+    const { data: existingEmployee, error: findError } = await supabase
       .from("employees")
       .select("id, company_id")
       .eq("id", employeeId)
       .eq("company_id", company.id)
       .single()
     
-    if (!existingEmployee) {
-      throw new Error("Funcionário não encontrado ou não pertence à sua empresa")
+    if (findError || !existingEmployee) {
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado ou não pertence à sua empresa"
+      })
     }
     
-    const { data: employee, error } = await supabase
+    const { data: updated, error } = await supabase
       .from("employees")
       .update({ status })
       .eq("id", employeeId)
@@ -278,7 +340,7 @@ export async function updateEmployeeStatus(employeeId: string, status: string) {
       .single()
     
     if (error) {
-      console.error("Erro ao atualizar status do funcionário:", error)
+      console.error("Erro ao atualizar status:", error)
       throw error
     }
     
@@ -286,13 +348,17 @@ export async function updateEmployeeStatus(employeeId: string, status: string) {
     revalidatePath("/dashboard/employees")
     revalidatePath(`/dashboard/employees/${employeeId}`)
     
-    return { success: true, employee }
+    return constructServerResponse({
+      success: true,
+      data: updated,
+      message: "Status do funcionário atualizado com sucesso"
+    })
   } catch (error) {
-    console.error("Erro ao atualizar status do funcionário:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao atualizar status do funcionário" 
-    }
+    console.error("Erro ao atualizar status:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao atualizar status"
+    })
   }
 }
 
@@ -300,43 +366,40 @@ export async function updateEmployeeStatus(employeeId: string, status: string) {
  * Remove um funcionário
  * @param employeeId ID do funcionário
  */
-export async function deleteEmployee(employeeId: string) {
+export async function deleteEmployee(employeeId: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem remover funcionários")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem remover funcionários"
+      })
     }
     
     const supabase = await createClient()
     
-    // Verifica se o funcionário existe e pertence à empresa atual
-    const { data: existingEmployee } = await supabase
+    // Confirma que o funcionário existe e pertence à empresa
+    const { data: existingEmployee, error: findError } = await supabase
       .from("employees")
       .select("id, company_id")
       .eq("id", employeeId)
       .eq("company_id", company.id)
       .single()
     
-    if (!existingEmployee) {
-      throw new Error("Funcionário não encontrado ou não pertence à sua empresa")
+    if (findError || !existingEmployee) {
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado ou não pertence à sua empresa"
+      })
     }
-    
-    // Remove documentos relacionados ao funcionário
-    await supabase.from("employee_documents").delete().eq("employee_id", employeeId)
-    
-    // Remove férias e ausências relacionadas ao funcionário
-    await supabase.from("time_off").delete().eq("employee_id", employeeId)
-    
-    // Remove tarefas de onboarding relacionadas ao funcionário
-    await supabase.from("employee_onboarding").delete().eq("employee_id", employeeId)
-    
-    // Remove movimentações de cargo relacionadas ao funcionário
-    await supabase.from("employee_roles").delete().eq("employee_id", employeeId)
     
     // Remove o funcionário
     const { error } = await supabase
@@ -345,20 +408,22 @@ export async function deleteEmployee(employeeId: string) {
       .eq("id", employeeId)
     
     if (error) {
-      console.error("Erro ao excluir funcionário:", error)
+      console.error("Erro ao remover funcionário:", error)
       throw error
     }
     
-    // Revalida a página de listagem
+    // Revalida as páginas relevantes
     revalidatePath("/dashboard/employees")
     
-    // Redireciona para a listagem após excluir
-    return { success: true }
+    return constructServerResponse({
+      success: true,
+      message: "Funcionário removido com sucesso"
+    })
   } catch (error) {
-    console.error("Erro ao excluir funcionário:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao excluir funcionário" 
-    }
+    console.error("Erro ao remover funcionário:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao remover funcionário"
+    })
   }
 } 

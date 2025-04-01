@@ -4,7 +4,8 @@ import { PhotoService } from "@/lib/services/photo-service"
 import { EmployeePhotoInsert, PhotoUploadData } from "@/lib/types/photo"
 import { constructServerResponse, ServerResponse } from "@/lib/utils/server-response"
 import { revalidatePath } from "next/cache"
-import { validateUserCompanyAccess } from "../utils/validators"
+import { getCurrentCompany } from "@/lib/auth-utils-server"
+import { createClient } from "@/lib/supabase/server"
 
 /**
  * Server action para obter a foto de um funcionário
@@ -31,6 +32,41 @@ export async function getEmployeePhoto(employeeId: string): Promise<ServerRespon
 }
 
 /**
+ * Valida se o usuário tem acesso à empresa do funcionário
+ * @param employeeId ID do funcionário
+ * @returns Resultado da validação com sucesso ou erro
+ */
+async function validateCompanyAccess(employeeId: string) {
+  const company = await getCurrentCompany()
+  
+  if (!company) {
+    return {
+      success: false,
+      error: "Empresa não encontrada ou usuário não autenticado"
+    }
+  }
+  
+  const supabase = await createClient()
+  
+  // Verifica se o funcionário pertence à empresa do usuário
+  const { data: employee, error } = await supabase
+    .from("employees")
+    .select("id, company_id")
+    .eq("id", employeeId)
+    .eq("company_id", company.id)
+    .single()
+  
+  if (error || !employee) {
+    return {
+      success: false,
+      error: "Funcionário não encontrado ou não pertence à sua empresa"
+    }
+  }
+  
+  return { success: true }
+}
+
+/**
  * Server action para criar ou atualizar a foto de um funcionário
  * @param photo Dados da foto
  * @returns Foto criada ou atualizada
@@ -38,7 +74,7 @@ export async function getEmployeePhoto(employeeId: string): Promise<ServerRespon
 export async function upsertEmployeePhoto(photo: EmployeePhotoInsert): Promise<ServerResponse> {
   try {
     // Validar acesso da empresa
-    const validationResult = await validateUserCompanyAccess(photo.employee_id);
+    const validationResult = await validateCompanyAccess(photo.employee_id);
     if (!validationResult.success) {
       return constructServerResponse({
         error: validationResult.error,
@@ -74,7 +110,7 @@ export async function upsertEmployeePhoto(photo: EmployeePhotoInsert): Promise<S
 export async function deleteEmployeePhoto(employeeId: string): Promise<ServerResponse> {
   try {
     // Validar acesso da empresa
-    const validationResult = await validateUserCompanyAccess(employeeId);
+    const validationResult = await validateCompanyAccess(employeeId);
     if (!validationResult.success) {
       return constructServerResponse({
         error: validationResult.error,

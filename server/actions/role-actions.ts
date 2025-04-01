@@ -20,6 +20,7 @@ import type {
   RoleEmployeeWithDetails,
 } from "@/lib/types/roles"
 import type { RoleFormValues } from "@/lib/schemas/role-schema"
+import { constructServerResponse, ServerResponse } from "@/lib/utils/server-response"
 
 /**
  * Obtém todos os cargos de uma empresa
@@ -992,5 +993,653 @@ export async function endRoleAssignment(roleEmployeeId: string, endDate: string)
   } catch (error) {
     console.error("Erro ao encerrar atribuição de cargo:", error)
     throw new Error(`Não foi possível encerrar a atribuição de cargo: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+/**
+ * Server action para criar um cargo a partir de FormData
+ * @param formData Dados do formulário
+ * @returns Resposta com o cargo criado ou erro
+ */
+export async function createRoleFromForm(formData: FormData): Promise<ServerResponse> {
+  try {
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    if (!company.isAdmin) {
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem criar cargos"
+      })
+    }
+
+    // Extrair dados do formulário
+    const title = formData.get("title") as string
+    const description = formData.get("description") as string
+    const teamId = formData.get("teamId") as string
+    const contractType = formData.get("contractType") as string
+
+    if (!title) {
+      return constructServerResponse({
+        success: false,
+        error: "O título do cargo é obrigatório"
+      })
+    }
+
+    const supabase = await createClient()
+    
+    // Inserir o novo cargo
+    const { data, error } = await supabase
+      .from("roles")
+      .insert({
+        company_id: company.id,
+        title,
+        description,
+        team_id: teamId || null,
+        contract_type: contractType,
+        created_by: company.userId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Erro ao criar cargo:", error)
+      return constructServerResponse({
+        success: false,
+        error: error.message
+      })
+    }
+
+    // Revalidar o caminho para atualizar os dados
+    revalidatePath("/dashboard/roles")
+
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Cargo criado com sucesso"
+    })
+  } catch (error) {
+    console.error("Erro ao criar cargo:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao criar cargo"
+    })
+  }
+}
+
+/**
+ * Server action para atualizar um cargo existente a partir de FormData
+ * @param id ID do cargo
+ * @param formData Dados do formulário
+ * @returns Resposta com o cargo atualizado ou erro
+ */
+export async function updateRoleFromForm(id: string, formData: FormData): Promise<ServerResponse> {
+  try {
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    if (!company.isAdmin) {
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem atualizar cargos"
+      })
+    }
+
+    // Extrair dados do formulário
+    const title = formData.get("title") as string
+    const description = formData.get("description") as string
+    const teamId = formData.get("teamId") as string
+    const contractType = formData.get("contractType") as string
+
+    if (!title) {
+      return constructServerResponse({
+        success: false,
+        error: "O título do cargo é obrigatório"
+      })
+    }
+
+    const supabase = await createClient()
+    
+    // Verifica se o cargo pertence à empresa do usuário
+    const { data: existingRole, error: existingRoleError } = await supabase
+      .from("roles")
+      .select("company_id")
+      .eq("id", id)
+      .single()
+    
+    if (existingRoleError || !existingRole) {
+      return constructServerResponse({
+        success: false,
+        error: "Cargo não encontrado"
+      })
+    }
+    
+    if (existingRole.company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Este cargo não pertence à sua empresa"
+      })
+    }
+
+    // Atualizar o cargo
+    const { data, error } = await supabase
+      .from("roles")
+      .update({
+        title,
+        description,
+        team_id: teamId || null,
+        contract_type: contractType,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Erro ao atualizar cargo:", error)
+      return constructServerResponse({
+        success: false,
+        error: error.message
+      })
+    }
+
+    // Revalidar os caminhos para atualizar os dados
+    revalidatePath("/dashboard/roles")
+    revalidatePath(`/dashboard/roles/${id}`)
+
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Cargo atualizado com sucesso"
+    })
+  } catch (error) {
+    console.error("Erro ao atualizar cargo:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao atualizar cargo"
+    })
+  }
+}
+
+/**
+ * Server action para alternar o status de atividade de um cargo
+ * @param id ID do cargo
+ * @returns Resposta com o cargo atualizado ou erro
+ */
+export async function toggleRoleActiveById(id: string): Promise<ServerResponse> {
+  try {
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    if (!company.isAdmin) {
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem ativar/desativar cargos"
+      })
+    }
+
+    const supabase = await createClient()
+    
+    // Verifica se o cargo pertence à empresa do usuário
+    const { data: existingRole, error: existingRoleError } = await supabase
+      .from("roles")
+      .select("company_id, active")
+      .eq("id", id)
+      .single()
+    
+    if (existingRoleError || !existingRole) {
+      return constructServerResponse({
+        success: false,
+        error: "Cargo não encontrado"
+      })
+    }
+    
+    if (existingRole.company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Este cargo não pertence à sua empresa"
+      })
+    }
+
+    // Alternar o status
+    const { data, error } = await supabase
+      .from("roles")
+      .update({
+        active: !existingRole.active,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Erro ao alternar status do cargo:", error)
+      return constructServerResponse({
+        success: false,
+        error: error.message
+      })
+    }
+
+    // Revalidar os caminhos para atualizar os dados
+    revalidatePath("/dashboard/roles")
+    revalidatePath(`/dashboard/roles/${id}`)
+
+    return constructServerResponse({
+      success: true,
+      data,
+      message: `Cargo ${data.active ? 'ativado' : 'desativado'} com sucesso`
+    })
+  } catch (error) {
+    console.error("Erro ao alternar status do cargo:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao alternar status do cargo"
+    })
+  }
+}
+
+/**
+ * Server action para excluir um cargo
+ * @param id ID do cargo
+ * @returns Resposta de sucesso ou erro
+ */
+export async function deleteRoleById(id: string): Promise<ServerResponse> {
+  try {
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    if (!company.isAdmin) {
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem excluir cargos"
+      })
+    }
+
+    const supabase = await createClient()
+    
+    // Verifica se o cargo pertence à empresa do usuário
+    const { data: existingRole, error: existingRoleError } = await supabase
+      .from("roles")
+      .select("company_id")
+      .eq("id", id)
+      .single()
+    
+    if (existingRoleError || !existingRole) {
+      return constructServerResponse({
+        success: false,
+        error: "Cargo não encontrado"
+      })
+    }
+    
+    if (existingRole.company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Este cargo não pertence à sua empresa"
+      })
+    }
+
+    // Verificar se há funcionários vinculados ao cargo
+    const { count, error: countError } = await supabase
+      .from("role_employees")
+      .select("id", { count: "exact", head: true })
+      .eq("role_id", id)
+      .eq("is_current", true)
+
+    if (countError) {
+      console.error("Erro ao verificar funcionários vinculados:", countError)
+      return constructServerResponse({
+        success: false,
+        error: countError.message
+      })
+    }
+
+    if (count && count > 0) {
+      return constructServerResponse({
+        success: false,
+        error: "Não é possível excluir um cargo com funcionários ativos"
+      })
+    }
+
+    // Exclui os registros relacionados (usando uma transação manual)
+    
+    // 1. Exclui cursos
+    const { error: deleteCoursesError } = await supabase
+      .from("role_courses")
+      .delete()
+      .eq("role_id", id)
+    
+    if (deleteCoursesError) {
+      console.error("Erro ao excluir cursos:", deleteCoursesError)
+    }
+    
+    // 2. Exclui cursos complementares
+    const { error: deleteComplementaryCoursesError } = await supabase
+      .from("role_complementary_courses")
+      .delete()
+      .eq("role_id", id)
+    
+    if (deleteComplementaryCoursesError) {
+      console.error("Erro ao excluir cursos complementares:", deleteComplementaryCoursesError)
+    }
+    
+    // 3. Exclui habilidades técnicas
+    const { error: deleteTechnicalSkillsError } = await supabase
+      .from("role_technical_skills")
+      .delete()
+      .eq("role_id", id)
+    
+    if (deleteTechnicalSkillsError) {
+      console.error("Erro ao excluir habilidades técnicas:", deleteTechnicalSkillsError)
+    }
+    
+    // 4. Exclui habilidades comportamentais
+    const { error: deleteBehavioralSkillsError } = await supabase
+      .from("role_behavioral_skills")
+      .delete()
+      .eq("role_id", id)
+    
+    if (deleteBehavioralSkillsError) {
+      console.error("Erro ao excluir habilidades comportamentais:", deleteBehavioralSkillsError)
+    }
+    
+    // 5. Exclui idiomas
+    const { error: deleteLanguagesError } = await supabase
+      .from("role_languages")
+      .delete()
+      .eq("role_id", id)
+    
+    if (deleteLanguagesError) {
+      console.error("Erro ao excluir idiomas:", deleteLanguagesError)
+    }
+    
+    // 6. Exclui histórico de cargos (não ativos)
+    const { error: deleteRoleEmployeesError } = await supabase
+      .from("role_employees")
+      .delete()
+      .eq("role_id", id)
+      .eq("is_current", false)
+    
+    if (deleteRoleEmployeesError) {
+      console.error("Erro ao excluir histórico de cargos:", deleteRoleEmployeesError)
+    }
+
+    // Finalmente, exclui o cargo
+    const { error } = await supabase
+      .from("roles")
+      .delete()
+      .eq("id", id)
+
+    if (error) {
+      console.error("Erro ao excluir cargo:", error)
+      return constructServerResponse({
+        success: false,
+        error: error.message
+      })
+    }
+
+    // Revalidar o caminho para atualizar os dados
+    revalidatePath("/dashboard/roles")
+
+    return constructServerResponse({
+      success: true,
+      message: "Cargo excluído com sucesso"
+    })
+  } catch (error) {
+    console.error("Erro ao excluir cargo:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao excluir cargo"
+    })
+  }
+}
+
+/**
+ * Server action para atribuir um cargo a um funcionário a partir de FormData
+ * @param formData Dados do formulário
+ * @returns Resposta com a atribuição criada ou erro
+ */
+export async function assignRoleToEmployeeFromForm(formData: FormData): Promise<ServerResponse> {
+  try {
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    if (!company.isAdmin) {
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem atribuir cargos"
+      })
+    }
+
+    // Extrair dados do formulário
+    const roleId = formData.get("roleId") as string
+    const employeeId = formData.get("employeeId") as string
+    const startDate = formData.get("startDate") as string
+
+    if (!roleId || !employeeId) {
+      return constructServerResponse({
+        success: false,
+        error: "Cargo e funcionário são obrigatórios"
+      })
+    }
+
+    const supabase = await createClient()
+    
+    // Verifica se o funcionário pertence à empresa
+    const { data: employee, error: employeeError } = await supabase
+      .from("employees")
+      .select("company_id")
+      .eq("id", employeeId)
+      .single()
+    
+    if (employeeError || !employee) {
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado"
+      })
+    }
+    
+    if (employee.company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Este funcionário não pertence à sua empresa"
+      })
+    }
+    
+    // Verifica se o cargo pertence à empresa
+    const { data: role, error: roleError } = await supabase
+      .from("roles")
+      .select("company_id")
+      .eq("id", roleId)
+      .single()
+    
+    if (roleError || !role) {
+      return constructServerResponse({
+        success: false,
+        error: "Cargo não encontrado"
+      })
+    }
+    
+    if (role.company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Este cargo não pertence à sua empresa"
+      })
+    }
+
+    // Verificar se o funcionário já tem um cargo atual
+    const { data: currentRoleData } = await supabase
+      .from("role_employees")
+      .select("id")
+      .eq("employee_id", employeeId)
+      .eq("is_current", true)
+
+    // Se o funcionário já tiver um cargo atual, finalizar esse cargo
+    if (currentRoleData && currentRoleData.length > 0) {
+      await supabase
+        .from("role_employees")
+        .update({
+          is_current: false,
+          end_date: startDate || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("employee_id", employeeId)
+        .eq("is_current", true)
+    }
+
+    // Atribuir o novo cargo ao funcionário
+    const { data, error } = await supabase
+      .from("role_employees")
+      .insert({
+        role_id: roleId,
+        employee_id: employeeId,
+        company_id: company.id,
+        start_date: startDate || new Date().toISOString(),
+        is_current: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Erro ao atribuir cargo:", error)
+      return constructServerResponse({
+        success: false,
+        error: error.message
+      })
+    }
+
+    // Revalidar os caminhos para atualizar os dados
+    revalidatePath(`/dashboard/employees/${employeeId}`)
+    revalidatePath(`/dashboard/roles/${roleId}`)
+
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Cargo atribuído com sucesso"
+    })
+  } catch (error) {
+    console.error("Erro ao atribuir cargo ao funcionário:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao atribuir cargo ao funcionário"
+    })
+  }
+}
+
+/**
+ * Server action para finalizar a atribuição de um cargo a um funcionário
+ * @param id ID da atribuição de cargo
+ * @returns Resposta com a atribuição atualizada ou erro
+ */
+export async function endRoleAssignmentById(id: string): Promise<ServerResponse> {
+  try {
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    if (!company.isAdmin) {
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem finalizar atribuições de cargos"
+      })
+    }
+
+    const supabase = await createClient()
+    
+    // Busca a atribuição de cargo para verificar permissões
+    const { data: roleEmployee, error: fetchError } = await supabase
+      .from("role_employees")
+      .select("*, employee:employees(company_id)")
+      .eq("id", id)
+      .single()
+    
+    if (fetchError || !roleEmployee) {
+      return constructServerResponse({
+        success: false,
+        error: "Atribuição de cargo não encontrada"
+      })
+    }
+    
+    // Verifica se o funcionário pertence à empresa do usuário
+    if (roleEmployee.employee.company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Este funcionário não pertence à sua empresa"
+      })
+    }
+
+    // Finalizar a atribuição
+    const { data, error } = await supabase
+      .from("role_employees")
+      .update({
+        is_current: false,
+        end_date: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Erro ao finalizar atribuição:", error)
+      return constructServerResponse({
+        success: false,
+        error: error.message
+      })
+    }
+
+    // Revalidar os caminhos para atualizar os dados
+    revalidatePath(`/dashboard/employees/${roleEmployee.employee_id}`)
+    revalidatePath(`/dashboard/roles/${roleEmployee.role_id}`)
+
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Atribuição de cargo finalizada com sucesso"
+    })
+  } catch (error) {
+    console.error("Erro ao finalizar atribuição de cargo:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao finalizar atribuição de cargo"
+    })
   }
 } 

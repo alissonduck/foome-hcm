@@ -13,6 +13,7 @@ import {
   DocumentWithEmployee,
   DocumentStatus
 } from "@/lib/types/documents"
+import { constructServerResponse, ServerResponse } from "@/lib/utils/server-response"
 
 // Interfaces para os tipos retornados pelo Supabase
 interface DocumentWithCompanyId {
@@ -40,12 +41,15 @@ interface DocumentWithUserId {
  * @param employeeId ID do funcionário (se null, busca documentos de toda a empresa)
  * @returns Lista de documentos
  */
-export async function getDocuments(employeeId: string | null = null) {
+export async function getDocuments(employeeId: string | null = null): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -84,10 +88,17 @@ export async function getDocuments(employeeId: string | null = null) {
       throw error
     }
     
-    return data as DocumentWithEmployee[]
+    return constructServerResponse({
+      success: true,
+      data: data as DocumentWithEmployee[],
+      message: "Documentos obtidos com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar documentos:", error)
-    throw new Error(`Não foi possível buscar os documentos: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar os documentos: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -95,12 +106,15 @@ export async function getDocuments(employeeId: string | null = null) {
  * Obtém os funcionários da empresa atual
  * @returns Lista de funcionários
  */
-export async function getEmployees() {
+export async function getEmployees(): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -116,10 +130,17 @@ export async function getEmployees() {
       throw error
     }
     
-    return data
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Funcionários obtidos com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar funcionários:", error)
-    throw new Error(`Não foi possível buscar os funcionários: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar os funcionários: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -127,12 +148,15 @@ export async function getEmployees() {
  * Obtém o funcionário atual
  * @returns Dados do funcionário atual
  */
-export async function getCurrentEmployee() {
+export async function getCurrentEmployee(): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -148,10 +172,17 @@ export async function getCurrentEmployee() {
       throw error
     }
     
-    return data
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Funcionário atual obtido com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar funcionário atual:", error)
-    throw new Error(`Não foi possível buscar o funcionário atual: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar o funcionário atual: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -160,16 +191,22 @@ export async function getCurrentEmployee() {
  * @param documentId ID do documento
  * @param status Novo status
  */
-export async function updateDocumentStatus(documentId: string, status: DocumentStatus) {
+export async function updateDocumentStatus(documentId: string, status: DocumentStatus): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem aprovar ou rejeitar documentos")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem aprovar ou rejeitar documentos"
+      })
     }
     
     const supabase = await createClient()
@@ -188,19 +225,30 @@ export async function updateDocumentStatus(documentId: string, status: DocumentS
       .single()
     
     if (fetchError || !document) {
-      throw new Error("Documento não encontrado")
+      return constructServerResponse({
+        success: false,
+        error: "Documento não encontrado"
+      })
     }
     
     const typedDocument = document as DocumentWithCompanyId
     
     if (typedDocument.employees.length === 0 || typedDocument.employees[0].company_id !== company.id) {
-      throw new Error("Documento não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Documento não pertence à sua empresa"
+      })
     }
     
     // Atualiza o status
-    const { data, error } = await supabase
+    const { data: updatedDocument, error } = await supabase
       .from("employee_documents")
-      .update({ status, updated_at: new Date().toISOString() })
+      .update({
+        status,
+        approved_by: status === "approved" ? company.userId : null,
+        approved_at: status === "approved" ? new Date().toISOString() : null,
+        rejected_at: status === "rejected" ? new Date().toISOString() : null
+      })
       .eq("id", documentId)
       .select()
       .single()
@@ -210,16 +258,21 @@ export async function updateDocumentStatus(documentId: string, status: DocumentS
       throw error
     }
     
-    // Revalida as páginas relevantes
+    // Revalida as páginas
     revalidatePath("/dashboard/documents")
+    revalidatePath(`/dashboard/employees/${typedDocument.employee_id}`)
     
-    return { success: true, document: data }
+    return constructServerResponse({
+      success: true,
+      data: updatedDocument,
+      message: `Documento ${status === "approved" ? "aprovado" : "rejeitado"} com sucesso`
+    })
   } catch (error) {
-    console.error("Erro ao atualizar status do documento:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao atualizar status do documento" 
-    }
+    console.error("Erro ao atualizar status:", error)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível atualizar o status do documento: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -227,17 +280,20 @@ export async function updateDocumentStatus(documentId: string, status: DocumentS
  * Remove um documento
  * @param documentId ID do documento
  */
-export async function deleteDocument(documentId: string) {
+export async function deleteDocument(documentId: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
     
-    // Verifica se o documento existe e pertence a um funcionário da empresa
+    // Busca o documento para verificar permissões
     const { data: document, error: fetchError } = await supabase
       .from("employee_documents")
       .select(`
@@ -253,138 +309,187 @@ export async function deleteDocument(documentId: string) {
       .single()
     
     if (fetchError || !document) {
-      throw new Error("Documento não encontrado")
+      return constructServerResponse({
+        success: false,
+        error: "Documento não encontrado"
+      })
     }
     
     const typedDocument = document as DocumentWithUserId
     
-    if (typedDocument.employees.length === 0) {
-      throw new Error("Documento não possui informações de funcionário")
-    }
-    
-    // Verifica se o usuário tem permissão (admin ou dono do documento)
+    // Verifica se é admin ou o próprio funcionário que enviou o documento
     const isAdmin = company.isAdmin
-    const isOwner = typedDocument.employees[0].user_id === company.userId
+    const isOwnDocument = typedDocument.employees[0].user_id === company.userId
     
-    if (!isAdmin && !isOwner) {
-      throw new Error("Você não tem permissão para excluir este documento")
+    if (!isAdmin && !isOwnDocument) {
+      return constructServerResponse({
+        success: false,
+        error: "Sem permissão para excluir este documento"
+      })
     }
     
-    // Exclui o registro do banco de dados
-    const { error: deleteError } = await supabase
-      .from("employee_documents")
-      .delete()
-      .eq("id", documentId)
-    
-    if (deleteError) {
-      throw deleteError
+    // Verifica se o documento pertence à empresa
+    if (typedDocument.employees[0].company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Documento não pertence à sua empresa"
+      })
     }
     
-    // Se o documento tem um arquivo associado, exclui do storage
+    // Exclui o arquivo do storage
     if (typedDocument.file_path) {
       const { error: storageError } = await supabase
         .storage
         .from("documents")
-        .remove([typedDocument.file_path])
+        .remove([typedDocument.file_path.replace("documents/", "")])
       
       if (storageError) {
         console.error("Erro ao excluir arquivo do storage:", storageError)
       }
     }
     
-    // Revalida as páginas relevantes
-    revalidatePath("/dashboard/documents")
-    
-    return { success: true }
-  } catch (error) {
-    console.error("Erro ao excluir documento:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao excluir documento" 
-    }
-  }
-}
-
-/**
- * Obtém uma URL assinada para download de arquivo
- * @param filePath Caminho do arquivo
- * @param expiresIn Tempo de expiração em segundos
- */
-export async function getSignedUrl(filePath: string, expiresIn: number = 60) {
-  try {
-    if (!filePath) {
-      throw new Error("Caminho do arquivo não fornecido")
-    }
-    
-    const supabase = await createClient()
-    
-    const { data, error } = await supabase
-      .storage
-      .from("documents")
-      .createSignedUrl(filePath, expiresIn)
+    // Exclui o registro do documento
+    const { error } = await supabase
+      .from("employee_documents")
+      .delete()
+      .eq("id", documentId)
     
     if (error) {
+      console.error("Erro ao excluir documento:", error)
       throw error
     }
     
-    return { success: true, url: data.signedUrl }
+    // Revalida as páginas
+    revalidatePath("/dashboard/documents")
+    revalidatePath(`/dashboard/employees/${typedDocument.employee_id}`)
+    
+    return constructServerResponse({
+      success: true,
+      message: "Documento excluído com sucesso"
+    })
   } catch (error) {
-    console.error("Erro ao gerar URL assinada:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao gerar URL assinada" 
-    }
+    console.error("Erro ao excluir documento:", error)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível excluir o documento: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
-// Adicionar action para upload de documentos
 /**
- * Server action para upload de arquivo e criação de documento
- * @param formData FormData com os dados do documento
+ * Obtém uma URL assinada para visualizar um documento
+ * @param filePath Caminho do arquivo
+ * @param expiresIn Tempo de expiração em segundos
  */
-export async function uploadDocument(formData: FormData) {
+export async function getSignedUrl(filePath: string, expiresIn: number = 60): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
     
-    // Extrai os dados do formulário
-    const employeeId = formData.get("employeeId") as string
-    const name = formData.get("name") as string
-    const type = formData.get("type") as string
-    const expirationDate = formData.get("expirationDate") as string
-    const file = formData.get("file") as File
+    // O caminho no storage não inclui o nome do bucket
+    const path = filePath.replace("documents/", "")
     
-    if (!employeeId || !name || !type || !file) {
-      throw new Error("Dados do formulário incompletos")
+    const { data, error } = await supabase
+      .storage
+      .from("documents")
+      .createSignedUrl(path, expiresIn)
+    
+    if (error) {
+      console.error("Erro ao gerar URL assinada:", error)
+      throw error
     }
     
-    // Verifica se o funcionário existe e pertence à empresa
+    return constructServerResponse({
+      success: true,
+      data: { url: data.signedUrl },
+      message: "URL assinada gerada com sucesso"
+    })
+  } catch (error) {
+    console.error("Erro ao gerar URL assinada:", error)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível gerar a URL: ${error instanceof Error ? error.message : String(error)}`
+    })
+  }
+}
+
+/**
+ * Faz upload de um documento
+ * @param formData Dados do formulário de upload
+ */
+export async function uploadDocument(formData: FormData): Promise<ServerResponse> {
+  try {
+    const company = await getCurrentCompany()
+    
+    if (!company) {
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    // Extrai os dados do formulário
+    const file = formData.get("file") as File
+    const employeeId = formData.get("employeeId") as string
+    const documentType = formData.get("documentType") as string
+    const description = formData.get("description") as string
+    
+    if (!file || !employeeId || !documentType) {
+      return constructServerResponse({
+        success: false,
+        error: "Dados incompletos"
+      })
+    }
+    
+    const supabase = await createClient()
+    
+    // Verifica se o funcionário pertence à empresa
     const { data: employee, error: employeeError } = await supabase
       .from("employees")
-      .select("id, company_id")
+      .select("id, company_id, user_id")
       .eq("id", employeeId)
       .single()
     
     if (employeeError || !employee) {
-      throw new Error("Funcionário não encontrado")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado"
+      })
     }
     
     if (employee.company_id !== company.id) {
-      throw new Error("Este funcionário não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não pertence à sua empresa"
+      })
+    }
+    
+    // Verifica permissões (se é admin ou o próprio funcionário)
+    const isAdmin = company.isAdmin
+    const isOwnDocument = employee.user_id === company.userId
+    
+    if (!isAdmin && !isOwnDocument) {
+      return constructServerResponse({
+        success: false,
+        error: "Sem permissão para enviar documentos para este funcionário"
+      })
     }
     
     // Gera um nome único para o arquivo
-    const timestamp = Date.now()
+    const timestamp = new Date().getTime()
     const fileExt = file.name.split(".").pop()
-    const fileName = `${employeeId}/${timestamp}-${file.name}`
+    const fileName = `${employeeId}/${documentType}_${timestamp}.${fileExt}`
     
-    // Upload do arquivo para o storage
-    const { data: fileData, error: uploadError } = await supabase
+    // Faz upload do arquivo
+    const { data: uploadData, error: uploadError } = await supabase
       .storage
       .from("documents")
       .upload(fileName, file, {
@@ -393,42 +498,71 @@ export async function uploadDocument(formData: FormData) {
       })
     
     if (uploadError) {
+      console.error("Erro ao fazer upload:", uploadError)
       throw uploadError
     }
     
-    // Cria o registro do documento no banco de dados
-    const documentData: EmployeeDocumentInsert = {
-      employee_id: employeeId,
-      name,
-      type,
-      status: "pending",
-      file_path: fileData.path,
-      file_name: file.name,
-      file_size: file.size,
-      expiration_date: expirationDate || null,
-    }
-    
+    // Salva o registro do documento
     const { data: document, error: insertError } = await supabase
       .from("employee_documents")
-      .insert([documentData])
+      .insert({
+        employee_id: employeeId,
+        document_type: documentType,
+        description: description || documentType,
+        file_name: file.name,
+        file_path: `documents/${fileName}`,
+        file_size: file.size,
+        file_type: file.type,
+        status: "pending",
+        uploaded_by: company.userId
+      })
       .select()
       .single()
     
     if (insertError) {
-      // Se ocorrer erro na inserção, remove o arquivo do storage
-      await supabase.storage.from("documents").remove([fileData.path])
+      console.error("Erro ao salvar documento:", insertError)
+      
+      // Tenta remover o arquivo se falhou ao salvar o registro
+      await supabase
+        .storage
+        .from("documents")
+        .remove([fileName])
+      
       throw insertError
     }
     
-    // Revalida a página
+    // Revalida as páginas
     revalidatePath("/dashboard/documents")
+    revalidatePath(`/dashboard/employees/${employeeId}`)
     
-    return { success: true, document }
+    return constructServerResponse({
+      success: true,
+      data: document,
+      message: "Documento enviado com sucesso"
+    })
   } catch (error) {
-    console.error("Erro ao fazer upload de documento:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao fazer upload de documento" 
-    }
+    console.error("Erro ao enviar documento:", error)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível enviar o documento: ${error instanceof Error ? error.message : String(error)}`
+    })
+  }
+}
+
+/**
+ * Server action para upload de documento usando FormData
+ * Essa action é chamada diretamente pelo form action do formulário de upload
+ * @param formData Dados do formulário de upload
+ * @returns Resposta de sucesso ou erro
+ */
+export async function uploadDocumentAction(formData: FormData): Promise<ServerResponse> {
+  try {
+    return await uploadDocument(formData)
+  } catch (error) {
+    console.error("Erro no upload do documento:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao fazer upload"
+    })
   }
 } 

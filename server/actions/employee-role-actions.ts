@@ -8,21 +8,29 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentCompany } from "@/lib/auth-utils-server"
 import { CreateEmployeeRoleInput, UpdateEmployeeRoleInput } from "@/lib/types/employee-role"
+import { constructServerResponse, ServerResponse } from "@/lib/utils/server-response"
 
 /**
  * Obtém todas as movimentações de cargo de um funcionário
  * @param employeeId ID do funcionário
+ * @returns Movimentações de cargo do funcionário
  */
-export async function getEmployeeRoles(employeeId: string) {
+export async function getEmployeeRoles(employeeId: string): Promise<ServerResponse> {
   try {
     if (!employeeId) {
-      throw new Error("ID do funcionário não fornecido")
+      return constructServerResponse({
+        success: false,
+        error: "ID do funcionário não fornecido"
+      })
     }
     
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -36,7 +44,10 @@ export async function getEmployeeRoles(employeeId: string) {
       .single()
     
     if (!employee) {
-      throw new Error("Funcionário não encontrado ou não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado ou não pertence à sua empresa"
+      })
     }
     
     const { data, error } = await supabase
@@ -50,27 +61,41 @@ export async function getEmployeeRoles(employeeId: string) {
     
     if (error) throw error
     
-    return data
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Movimentações de cargo obtidas com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar movimentações de cargo:", error)
-    throw new Error(`Não foi possível buscar as movimentações de cargo: ${JSON.stringify(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar as movimentações de cargo: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
 /**
  * Obtém o cargo atual de um funcionário
  * @param employeeId ID do funcionário
+ * @returns Cargo atual do funcionário
  */
-export async function getCurrentRole(employeeId: string) {
+export async function getCurrentRole(employeeId: string): Promise<ServerResponse> {
   try {
     if (!employeeId) {
-      throw new Error("ID do funcionário não fornecido")
+      return constructServerResponse({
+        success: false,
+        error: "ID do funcionário não fornecido"
+      })
     }
     
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -84,7 +109,10 @@ export async function getCurrentRole(employeeId: string) {
       .single()
     
     if (!employee) {
-      throw new Error("Funcionário não encontrado ou não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado ou não pertence à sua empresa"
+      })
     }
     
     const { data, error } = await supabase
@@ -99,27 +127,41 @@ export async function getCurrentRole(employeeId: string) {
     
     if (error && error.code !== "PGRST116") throw error
     
-    return data
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Cargo atual obtido com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar cargo atual:", error)
-    return null
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar o cargo atual: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
 /**
  * Cria uma nova movimentação de cargo
  * @param input Dados da movimentação
+ * @returns Movimentação de cargo criada
  */
-export async function createEmployeeRole(input: CreateEmployeeRoleInput) {
+export async function createEmployeeRole(input: CreateEmployeeRoleInput): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem registrar movimentações de cargo")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem registrar movimentações de cargo"
+      })
     }
     
     const supabase = await createClient()
@@ -133,7 +175,10 @@ export async function createEmployeeRole(input: CreateEmployeeRoleInput) {
       .single()
     
     if (!employee) {
-      throw new Error("Funcionário não encontrado ou não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado ou não pertence à sua empresa"
+      })
     }
     
     // Verifica se o cargo pertence à empresa atual
@@ -145,7 +190,10 @@ export async function createEmployeeRole(input: CreateEmployeeRoleInput) {
       .single()
     
     if (!role) {
-      throw new Error("Cargo não encontrado ou não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Cargo não encontrado ou não pertence à sua empresa"
+      })
     }
     
     // Se marcado como cargo atual, atualiza os outros cargos
@@ -181,13 +229,17 @@ export async function createEmployeeRole(input: CreateEmployeeRoleInput) {
     revalidatePath(`/dashboard/employees/${input.employee_id}`)
     revalidatePath(`/dashboard/employees/${input.employee_id}/movimentacoes`)
     
-    return { success: true, data }
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Movimentação de cargo criada com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao criar movimentação de cargo:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao criar movimentação de cargo" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao criar movimentação de cargo"
+    })
   }
 }
 
@@ -195,45 +247,48 @@ export async function createEmployeeRole(input: CreateEmployeeRoleInput) {
  * Atualiza uma movimentação de cargo existente
  * @param id ID da movimentação
  * @param input Dados atualizados
+ * @returns Movimentação de cargo atualizada
  */
-export async function updateEmployeeRole(id: string, input: UpdateEmployeeRoleInput) {
+export async function updateEmployeeRole(id: string, input: UpdateEmployeeRoleInput): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem atualizar movimentações de cargo")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem atualizar movimentações de cargo"
+      })
     }
     
     const supabase = await createClient()
     
-    // Verifica se a movimentação existe e pertence à empresa atual
-    const { data: existingRole } = await supabase
+    // Busca a movimentação existente
+    const { data: existingRole, error: findError } = await supabase
       .from("employee_roles")
       .select("id, employee_id, company_id")
       .eq("id", id)
-      .eq("company_id", company.id)
       .single()
     
-    if (!existingRole) {
-      throw new Error("Movimentação não encontrada ou não pertence à sua empresa")
+    if (findError || !existingRole) {
+      return constructServerResponse({
+        success: false,
+        error: "Movimentação de cargo não encontrada"
+      })
     }
     
-    // Se houver mudança em cargo, verifica se o novo cargo pertence à empresa
-    if (input.role_id) {
-      const { data: role } = await supabase
-        .from("roles")
-        .select("id, company_id")
-        .eq("id", input.role_id)
-        .eq("company_id", company.id)
-        .single()
-      
-      if (!role) {
-        throw new Error("Cargo não encontrado ou não pertence à sua empresa")
-      }
+    // Verifica se pertence à empresa
+    if (existingRole.company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Movimentação de cargo não pertence à sua empresa"
+      })
     }
     
     // Se marcado como cargo atual, atualiza os outros cargos
@@ -249,6 +304,7 @@ export async function updateEmployeeRole(id: string, input: UpdateEmployeeRoleIn
         .eq("is_current", true)
     }
     
+    // Atualiza a movimentação
     const { data, error } = await supabase
       .from("employee_roles")
       .update(input)
@@ -265,44 +321,65 @@ export async function updateEmployeeRole(id: string, input: UpdateEmployeeRoleIn
     revalidatePath(`/dashboard/employees/${existingRole.employee_id}`)
     revalidatePath(`/dashboard/employees/${existingRole.employee_id}/movimentacoes`)
     
-    return { success: true, data }
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Movimentação de cargo atualizada com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao atualizar movimentação de cargo:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao atualizar movimentação de cargo" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao atualizar movimentação de cargo"
+    })
   }
 }
 
 /**
  * Remove uma movimentação de cargo
  * @param id ID da movimentação
+ * @returns Status da operação
  */
-export async function deleteEmployeeRole(id: string) {
+export async function deleteEmployeeRole(id: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem remover movimentações de cargo")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem remover movimentações de cargo"
+      })
     }
     
     const supabase = await createClient()
     
-    // Verifica se a movimentação existe e pertence à empresa atual
-    const { data: existingRole } = await supabase
+    // Busca a movimentação existente
+    const { data: existingRole, error: findError } = await supabase
       .from("employee_roles")
       .select("id, employee_id, company_id, is_current")
       .eq("id", id)
-      .eq("company_id", company.id)
       .single()
     
-    if (!existingRole) {
-      throw new Error("Movimentação não encontrada ou não pertence à sua empresa")
+    if (findError || !existingRole) {
+      return constructServerResponse({
+        success: false,
+        error: "Movimentação de cargo não encontrada"
+      })
+    }
+    
+    // Verifica se pertence à empresa
+    if (existingRole.company_id !== company.id) {
+      return constructServerResponse({
+        success: false,
+        error: "Movimentação de cargo não pertence à sua empresa"
+      })
     }
     
     // Remove a movimentação
@@ -313,35 +390,19 @@ export async function deleteEmployeeRole(id: string) {
     
     if (error) throw error
     
-    // Se era o cargo atual, precisa definir um novo cargo atual
-    if (existingRole.is_current) {
-      // Busca a movimentação mais recente para defini-la como atual
-      const { data: latestRole } = await supabase
-        .from("employee_roles")
-        .select("id")
-        .eq("employee_id", existingRole.employee_id)
-        .order("start_date", { ascending: false })
-        .limit(1)
-        .single()
-      
-      if (latestRole) {
-        await supabase
-          .from("employee_roles")
-          .update({ is_current: true, end_date: null })
-          .eq("id", latestRole.id)
-      }
-    }
-    
     // Revalida as páginas relevantes
     revalidatePath(`/dashboard/employees/${existingRole.employee_id}`)
     revalidatePath(`/dashboard/employees/${existingRole.employee_id}/movimentacoes`)
     
-    return { success: true }
+    return constructServerResponse({
+      success: true,
+      message: "Movimentação de cargo removida com sucesso"
+    })
   } catch (error) {
-    console.error("Erro ao excluir movimentação de cargo:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao excluir movimentação de cargo" 
-    }
+    console.error("Erro ao remover movimentação de cargo:", error)
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao remover movimentação de cargo"
+    })
   }
 } 

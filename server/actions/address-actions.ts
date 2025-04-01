@@ -16,6 +16,7 @@ import {
 } from "@/lib/types/address"
 import { isAuthenticated } from "@/lib/auth-utils-server"
 import { createClient } from "@/lib/supabase/server"
+import { constructServerResponse, ServerResponse } from "@/lib/utils/server-response"
 
 const addressService = new AddressService()
 
@@ -23,22 +24,28 @@ const addressService = new AddressService()
  * Busca todos os países disponíveis
  * @returns Lista de países
  */
-export async function getCountries(): Promise<{ data: Country[] | null; error: string | null }> {
+export async function getCountries(): Promise<ServerResponse> {
   try {
     // Verificar autenticação
     const isAuth = await isAuthenticated()
     if (!isAuth) {
-      return { data: null, error: "Usuário não autenticado" }
+      return constructServerResponse({
+        success: false,
+        error: "Usuário não autenticado"
+      })
     }
 
     const countries = await addressService.listCountries()
-    return { data: countries, error: null }
+    return constructServerResponse({
+      success: true,
+      data: countries
+    })
   } catch (error) {
     console.error("Erro ao buscar países:", error)
-    return { 
-      data: null, 
-      error: error instanceof Error ? error.message : "Erro ao buscar países" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao buscar países"
+    })
   }
 }
 
@@ -47,26 +54,35 @@ export async function getCountries(): Promise<{ data: Country[] | null; error: s
  * @param countryId ID do país
  * @returns Lista de estados
  */
-export async function getStates(countryId: string): Promise<{ data: State[] | null; error: string | null }> {
+export async function getStates(countryId: string): Promise<ServerResponse> {
   try {
     // Verificar autenticação
     const isAuth = await isAuthenticated()
     if (!isAuth) {
-      return { data: null, error: "Usuário não autenticado" }
+      return constructServerResponse({
+        success: false,
+        error: "Usuário não autenticado"
+      })
     }
 
     if (!countryId) {
-      return { data: null, error: "ID do país é obrigatório" }
+      return constructServerResponse({
+        success: false,
+        error: "ID do país é obrigatório"
+      })
     }
     
     const states = await addressService.listStates(countryId)
-    return { data: states, error: null }
+    return constructServerResponse({
+      success: true,
+      data: states
+    })
   } catch (error) {
     console.error("Erro ao buscar estados:", error)
-    return { 
-      data: null, 
-      error: error instanceof Error ? error.message : "Erro ao buscar estados" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao buscar estados"
+    })
   }
 }
 
@@ -75,26 +91,35 @@ export async function getStates(countryId: string): Promise<{ data: State[] | nu
  * @param stateId ID do estado
  * @returns Lista de cidades
  */
-export async function getCities(stateId: string): Promise<{ data: City[] | null; error: string | null }> {
+export async function getCities(stateId: string): Promise<ServerResponse> {
   try {
     // Verificar autenticação
     const isAuth = await isAuthenticated()
     if (!isAuth) {
-      return { data: null, error: "Usuário não autenticado" }
+      return constructServerResponse({
+        success: false,
+        error: "Usuário não autenticado"
+      })
     }
 
     if (!stateId) {
-      return { data: null, error: "ID do estado é obrigatório" }
+      return constructServerResponse({
+        success: false,
+        error: "ID do estado é obrigatório"
+      })
     }
     
     const cities = await addressService.listCities(stateId)
-    return { data: cities, error: null }
+    return constructServerResponse({
+      success: true,
+      data: cities
+    })
   } catch (error) {
     console.error("Erro ao buscar cidades:", error)
-    return { 
-      data: null, 
-      error: error instanceof Error ? error.message : "Erro ao buscar cidades" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao buscar cidades"
+    })
   }
 }
 
@@ -103,29 +128,35 @@ export async function getCities(stateId: string): Promise<{ data: City[] | null;
  * @param employeeId ID do funcionário
  * @returns Lista de endereços com relações
  */
-export async function getEmployeeAddresses(employeeId: string): Promise<{ 
-  data: EmployeeAddressWithRelations[] | null; 
-  error: string | null 
-}> {
+export async function getEmployeeAddresses(employeeId: string): Promise<ServerResponse> {
   try {
     // Verificar autenticação
     const isAuth = await isAuthenticated()
     if (!isAuth) {
-      return { data: null, error: "Usuário não autenticado" }
+      return constructServerResponse({
+        success: false,
+        error: "Usuário não autenticado"
+      })
     }
 
     if (!employeeId) {
-      return { data: null, error: "ID do funcionário é obrigatório" }
+      return constructServerResponse({
+        success: false,
+        error: "ID do funcionário é obrigatório"
+      })
     }
     
     const addresses = await addressService.listEmployeeAddresses(employeeId)
-    return { data: addresses, error: null }
+    return constructServerResponse({
+      success: true,
+      data: addresses
+    })
   } catch (error) {
     console.error("Erro ao buscar endereços do funcionário:", error)
-    return { 
-      data: null, 
-      error: error instanceof Error ? error.message : "Erro ao buscar endereços do funcionário" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao buscar endereços do funcionário"
+    })
   }
 }
 
@@ -134,28 +165,37 @@ export async function getEmployeeAddresses(employeeId: string): Promise<{
  * @param data Dados do endereço
  * @returns Endereço criado com relações
  */
-export async function createEmployeeAddress(data: EmployeeAddressInsert): Promise<{ 
-  data: EmployeeAddressWithRelations | null; 
-  error: string | null 
-}> {
+export async function createEmployeeAddress(data: EmployeeAddressInsert): Promise<ServerResponse> {
   try {
     // Verificar autenticação
     const isAuth = await isAuthenticated()
     if (!isAuth) {
-      return { data: null, error: "Usuário não autenticado" }
+      return constructServerResponse({
+        success: false,
+        error: "Usuário não autenticado"
+      })
     }
 
     // Validações básicas
     if (!data.employee_id) {
-      return { data: null, error: "ID do funcionário é obrigatório" }
+      return constructServerResponse({
+        success: false,
+        error: "ID do funcionário é obrigatório"
+      })
     }
     
     if (!data.street || !data.number || !data.neighborhood || !data.postal_code) {
-      return { data: null, error: "Dados incompletos do endereço" }
+      return constructServerResponse({
+        success: false,
+        error: "Dados incompletos do endereço"
+      })
     }
     
     if (!data.country_id || !data.state_id || !data.city_id) {
-      return { data: null, error: "País, estado e cidade são obrigatórios" }
+      return constructServerResponse({
+        success: false,
+        error: "País, estado e cidade são obrigatórios"
+      })
     }
     
     // Criar endereço
@@ -164,13 +204,17 @@ export async function createEmployeeAddress(data: EmployeeAddressInsert): Promis
     // Revalidar cache
     revalidatePath(`/dashboard/employees/${data.employee_id}`)
     
-    return { data: address, error: null }
+    return constructServerResponse({
+      success: true,
+      data: address,
+      message: "Endereço criado com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao criar endereço:", error)
-    return { 
-      data: null, 
-      error: error instanceof Error ? error.message : "Erro ao criar endereço" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao criar endereço"
+    })
   }
 }
 
@@ -180,25 +224,31 @@ export async function createEmployeeAddress(data: EmployeeAddressInsert): Promis
  * @param data Dados a serem atualizados
  * @returns Endereço atualizado com relações
  */
-export async function updateEmployeeAddress(id: string, data: EmployeeAddressUpdate): Promise<{ 
-  data: EmployeeAddressWithRelations | null; 
-  error: string | null 
-}> {
+export async function updateEmployeeAddress(id: string, data: EmployeeAddressUpdate): Promise<ServerResponse> {
   try {
     // Verificar autenticação
     const isAuth = await isAuthenticated()
     if (!isAuth) {
-      return { data: null, error: "Usuário não autenticado" }
+      return constructServerResponse({
+        success: false,
+        error: "Usuário não autenticado"
+      })
     }
 
     if (!id) {
-      return { data: null, error: "ID do endereço é obrigatório" }
+      return constructServerResponse({
+        success: false,
+        error: "ID do endereço é obrigatório"
+      })
     }
     
     // Buscar endereço para obter o employee_id para revalidação
     const existingAddress = await addressService.getEmployeeAddress(id)
     if (!existingAddress) {
-      return { data: null, error: "Endereço não encontrado" }
+      return constructServerResponse({
+        success: false,
+        error: "Endereço não encontrado"
+      })
     }
     
     // Atualizar endereço
@@ -207,13 +257,17 @@ export async function updateEmployeeAddress(id: string, data: EmployeeAddressUpd
     // Revalidar cache
     revalidatePath(`/dashboard/employees/${existingAddress.employee_id}`)
     
-    return { data: address, error: null }
+    return constructServerResponse({
+      success: true,
+      data: address,
+      message: "Endereço atualizado com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao atualizar endereço:", error)
-    return { 
-      data: null, 
-      error: error instanceof Error ? error.message : "Erro ao atualizar endereço" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao atualizar endereço"
+    })
   }
 }
 
@@ -222,25 +276,31 @@ export async function updateEmployeeAddress(id: string, data: EmployeeAddressUpd
  * @param id ID do endereço
  * @returns Sucesso ou erro
  */
-export async function deleteEmployeeAddress(id: string): Promise<{ 
-  success: boolean; 
-  error: string | null 
-}> {
+export async function deleteEmployeeAddress(id: string): Promise<ServerResponse> {
   try {
     // Verificar autenticação
     const isAuth = await isAuthenticated()
     if (!isAuth) {
-      return { success: false, error: "Usuário não autenticado" }
+      return constructServerResponse({
+        success: false,
+        error: "Usuário não autenticado"
+      })
     }
 
     if (!id) {
-      return { success: false, error: "ID do endereço é obrigatório" }
+      return constructServerResponse({
+        success: false,
+        error: "ID do endereço é obrigatório"
+      })
     }
     
     // Buscar endereço para obter o employee_id para revalidação
     const existingAddress = await addressService.getEmployeeAddress(id)
     if (!existingAddress) {
-      return { success: false, error: "Endereço não encontrado" }
+      return constructServerResponse({
+        success: false,
+        error: "Endereço não encontrado"
+      })
     }
     
     // Deletar endereço
@@ -249,12 +309,15 @@ export async function deleteEmployeeAddress(id: string): Promise<{
     // Revalidar cache
     revalidatePath(`/dashboard/employees/${existingAddress.employee_id}`)
     
-    return { success: true, error: null }
+    return constructServerResponse({
+      success: true,
+      message: "Endereço removido com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao remover endereço:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro ao remover endereço" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao remover endereço"
+    })
   }
 } 

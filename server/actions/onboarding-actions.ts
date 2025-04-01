@@ -16,17 +16,21 @@ import {
   OnboardingFilters,
   OnboardingStatus
 } from "@/lib/types/onboarding"
+import { constructServerResponse, ServerResponse } from "@/lib/utils/server-response"
 
 /**
  * Obtém todas as tarefas de onboarding de uma empresa
  * @returns Lista de tarefas de onboarding
  */
-export async function getTasks() {
+export async function getTasks(): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -42,10 +46,17 @@ export async function getTasks() {
       throw error
     }
     
-    return data || []
+    return constructServerResponse({
+      success: true,
+      data: data || [],
+      message: "Tarefas de onboarding obtidas com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao obter tarefas de onboarding:", error)
-    throw new Error(`Não foi possível buscar as tarefas: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar as tarefas: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -54,12 +65,15 @@ export async function getTasks() {
  * @param taskId ID da tarefa
  * @returns Tarefa de onboarding
  */
-export async function getTask(taskId: string) {
+export async function getTask(taskId: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -72,18 +86,31 @@ export async function getTask(taskId: string) {
     
     if (error) {
       console.error("Erro ao obter tarefa de onboarding:", error)
-      throw error
+      return constructServerResponse({
+        success: false,
+        error: "Tarefa não encontrada"
+      })
     }
     
     // Verifica se a tarefa pertence à empresa do usuário
     if (data.company_id !== company.id) {
-      throw new Error("Acesso negado a esta tarefa")
+      return constructServerResponse({
+        success: false,
+        error: "Acesso negado a esta tarefa"
+      })
     }
     
-    return data
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Tarefa de onboarding obtida com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao obter tarefa de onboarding:", error)
-    throw new Error(`Não foi possível buscar a tarefa: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar a tarefa: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -91,12 +118,15 @@ export async function getTask(taskId: string) {
  * Obtém os funcionários da empresa atual
  * @returns Lista de funcionários
  */
-export async function getEmployees() {
+export async function getEmployees(): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -109,7 +139,10 @@ export async function getEmployees() {
       .single()
     
     if (employeeError || !currentEmployee) {
-      throw new Error("Dados do funcionário não encontrados")
+      return constructServerResponse({
+        success: false,
+        error: "Dados do funcionário não encontrados"
+      })
     }
     
     // Busca todos os funcionários da empresa
@@ -124,10 +157,17 @@ export async function getEmployees() {
       throw error
     }
     
-    return data || []
+    return constructServerResponse({
+      success: true,
+      data: data || [],
+      message: "Funcionários obtidos com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar funcionários:", error)
-    throw new Error(`Não foi possível buscar os funcionários: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar os funcionários: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -135,12 +175,15 @@ export async function getEmployees() {
  * Obtém o funcionário atual
  * @returns Dados do funcionário atual
  */
-export async function getCurrentEmployee() {
+export async function getCurrentEmployee(): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -153,13 +196,23 @@ export async function getCurrentEmployee() {
     
     if (error) {
       console.error("Erro ao buscar funcionário atual:", error)
-      throw error
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado"
+      })
     }
     
-    return data
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Funcionário atual obtido com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar funcionário atual:", error)
-    throw new Error(`Não foi possível buscar o funcionário atual: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar o funcionário atual: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -168,12 +221,15 @@ export async function getCurrentEmployee() {
  * @param filters Filtros opcionais (status, employeeId, search)
  * @returns Lista de onboardings
  */
-export async function getOnboardings(filters?: OnboardingFilters) {
+export async function getOnboardings(filters?: OnboardingFilters): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -186,7 +242,10 @@ export async function getOnboardings(filters?: OnboardingFilters) {
       .single()
     
     if (employeeError || !employee) {
-      throw new Error("Dados do funcionário não encontrados")
+      return constructServerResponse({
+        success: false,
+        error: "Dados do funcionário não encontrados"
+      })
     }
     
     const isAdmin = employee.is_admin || false
@@ -258,10 +317,17 @@ export async function getOnboardings(filters?: OnboardingFilters) {
       })
     }
     
-    return result as unknown as EmployeeOnboardingWithRelations[]
+    return constructServerResponse({
+      success: true,
+      data: result as unknown as EmployeeOnboardingWithRelations[],
+      message: "Onboardings obtidos com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao obter onboardings:", error)
-    throw new Error(`Não foi possível buscar os onboardings: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar os onboardings: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -270,16 +336,22 @@ export async function getOnboardings(filters?: OnboardingFilters) {
  * @param task Dados da tarefa
  * @returns Tarefa criada
  */
-export async function createTask(task: OnboardingTaskInsert) {
+export async function createTask(task: OnboardingTaskInsert): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem criar tarefas de onboarding")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem criar tarefas de onboarding"
+      })
     }
     
     // Garante que a tarefa será criada para a empresa do usuário
@@ -301,13 +373,17 @@ export async function createTask(task: OnboardingTaskInsert) {
     // Revalida a página
     revalidatePath("/dashboard/onboarding")
     
-    return { success: true, task: data }
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Tarefa de onboarding criada com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao criar tarefa de onboarding:", error)
-    return { 
-      success: false, 
+    return constructServerResponse({
+      success: false,
       error: error instanceof Error ? error.message : "Erro desconhecido ao criar tarefa de onboarding"
-    }
+    })
   }
 }
 
@@ -317,16 +393,22 @@ export async function createTask(task: OnboardingTaskInsert) {
  * @param task Dados da tarefa
  * @returns Tarefa atualizada
  */
-export async function updateTask(taskId: string, task: OnboardingTaskUpdate) {
+export async function updateTask(taskId: string, task: OnboardingTaskUpdate): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem atualizar tarefas de onboarding")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem atualizar tarefas de onboarding"
+      })
     }
     
     const supabase = await createClient()
@@ -339,11 +421,17 @@ export async function updateTask(taskId: string, task: OnboardingTaskUpdate) {
       .single()
     
     if (fetchError || !existingTask) {
-      throw new Error("Tarefa não encontrada")
+      return constructServerResponse({
+        success: false,
+        error: "Tarefa não encontrada"
+      })
     }
     
     if (existingTask.company_id !== company.id) {
-      throw new Error("Acesso negado a esta tarefa")
+      return constructServerResponse({
+        success: false,
+        error: "Acesso negado a esta tarefa"
+      })
     }
     
     // Remove o company_id se estiver presente para evitar alteração da propriedade
@@ -366,13 +454,17 @@ export async function updateTask(taskId: string, task: OnboardingTaskUpdate) {
     // Revalida a página
     revalidatePath("/dashboard/onboarding")
     
-    return { success: true, task: data }
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Tarefa de onboarding atualizada com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao atualizar tarefa de onboarding:", error)
-    return { 
-      success: false, 
+    return constructServerResponse({
+      success: false,
       error: error instanceof Error ? error.message : "Erro desconhecido ao atualizar tarefa de onboarding"
-    }
+    })
   }
 }
 
@@ -381,17 +473,23 @@ export async function updateTask(taskId: string, task: OnboardingTaskUpdate) {
  * @param taskId ID da tarefa a ser excluída
  * @returns Status da operação
  */
-export async function deleteTask(taskId: string) {
+export async function deleteTask(taskId: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     // Apenas admin pode excluir tarefas
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem excluir tarefas")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem excluir tarefas"
+      })
     }
     
     const supabase = await createClient()
@@ -404,11 +502,17 @@ export async function deleteTask(taskId: string) {
       .single()
     
     if (taskError || !task) {
-      throw new Error("Tarefa não encontrada")
+      return constructServerResponse({
+        success: false,
+        error: "Tarefa não encontrada"
+      })
     }
     
     if (task.company_id !== company.id) {
-      throw new Error("Esta tarefa não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Esta tarefa não pertence à sua empresa"
+      })
     }
     
     // Verifica se a tarefa está sendo usada em algum onboarding
@@ -423,7 +527,10 @@ export async function deleteTask(taskId: string) {
     }
     
     if (usedTasks && usedTasks.length > 0) {
-      throw new Error("Esta tarefa está sendo usada em um ou mais onboardings e não pode ser excluída")
+      return constructServerResponse({
+        success: false,
+        error: "Esta tarefa está sendo usada em um ou mais onboardings e não pode ser excluída"
+      })
     }
     
     // Exclui a tarefa
@@ -439,13 +546,16 @@ export async function deleteTask(taskId: string) {
     // Revalida a página
     revalidatePath("/dashboard/onboarding")
     
-    return { success: true }
+    return constructServerResponse({
+      success: true,
+      message: "Tarefa excluída com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao excluir tarefa:", error)
-    return { 
-      success: false, 
+    return constructServerResponse({
+      success: false,
       error: error instanceof Error ? error.message : "Erro desconhecido ao excluir tarefa"
-    }
+    })
   }
 }
 
@@ -460,7 +570,7 @@ export async function assignTasks(assignments: Array<{
   status: string;
   due_date: string | null;
   notes: string | null;
-}>): Promise<{ success: boolean; data?: any; error?: string }>;
+}>): Promise<ServerResponse>;
 
 /**
  * Atribui tarefas a um funcionário
@@ -481,12 +591,15 @@ export async function assignTasks(
   taskIds?: string[],
   notes?: string | null,
   dueDate?: string | null
-) {
+): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -507,20 +620,29 @@ export async function assignTasks(
       assignments = employeeIdOrAssignments;
       
       if (assignments.length === 0) {
-        throw new Error("Nenhuma atribuição foi fornecida");
+        return constructServerResponse({
+          success: false,
+          error: "Nenhuma atribuição foi fornecida"
+        })
       }
       
       // Verifica se todas as atribuições têm o mesmo funcionário
       employeeId = assignments[0].employee_id;
       if (!assignments.every(a => a.employee_id === employeeId)) {
-        throw new Error("Todas as atribuições devem ser para o mesmo funcionário");
+        return constructServerResponse({
+          success: false,
+          error: "Todas as atribuições devem ser para o mesmo funcionário"
+        })
       }
     } else {
       // Temos parâmetros individuais
       employeeId = employeeIdOrAssignments;
       
       if (!taskIds || taskIds.length === 0) {
-        throw new Error("Nenhuma tarefa foi selecionada");
+        return constructServerResponse({
+          success: false,
+          error: "Nenhuma tarefa foi selecionada"
+        })
       }
       
       // Prepara os dados como atribuições
@@ -535,7 +657,10 @@ export async function assignTasks(
     
     // Verifica se o usuário tem permissão (admin ou é o próprio funcionário)
     if (!company.isAdmin && employeeId !== company.userId) {
-      throw new Error("Você não tem permissão para atribuir tarefas a este funcionário")
+      return constructServerResponse({
+        success: false,
+        error: "Você não tem permissão para atribuir tarefas a este funcionário"
+      })
     }
     
     // Verifica se o funcionário pertence à empresa
@@ -546,11 +671,17 @@ export async function assignTasks(
       .single()
     
     if (employeeError || !employee) {
-      throw new Error("Funcionário não encontrado")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado"
+      })
     }
     
     if (employee.company_id !== company.id) {
-      throw new Error("Este funcionário não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Este funcionário não pertence à sua empresa"
+      })
     }
     
     // Extrai os IDs das tarefas
@@ -568,13 +699,19 @@ export async function assignTasks(
     
     // Verifica se todas as tarefas foram encontradas
     if (!tasks || tasks.length !== taskIdsArray.length) {
-      throw new Error("Uma ou mais tarefas não foram encontradas")
+      return constructServerResponse({
+        success: false,
+        error: "Uma ou mais tarefas não foram encontradas"
+      })
     }
     
     // Verifica se todas as tarefas pertencem à empresa
     for (const task of tasks) {
       if (task.company_id !== company.id) {
-        throw new Error("Uma ou mais tarefas não pertencem à sua empresa")
+        return constructServerResponse({
+          success: false,
+          error: "Uma ou mais tarefas não pertencem à sua empresa"
+        })
       }
     }
     
@@ -606,13 +743,17 @@ export async function assignTasks(
     // Revalida a página
     revalidatePath("/dashboard/onboarding")
     
-    return { success: true, data }
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Tarefas atribuídas com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao atribuir tarefas:", error)
-    return { 
-      success: false, 
+    return constructServerResponse({
+      success: false,
       error: error instanceof Error ? error.message : "Erro desconhecido ao atribuir tarefas"
-    }
+    })
   }
 }
 
@@ -622,12 +763,15 @@ export async function assignTasks(
  * @param status Novo status
  * @returns Status da operação
  */
-export async function updateOnboardingStatus(onboardingId: string, status: OnboardingStatus) {
+export async function updateOnboardingStatus(onboardingId: string, status: OnboardingStatus): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -647,17 +791,26 @@ export async function updateOnboardingStatus(onboardingId: string, status: Onboa
       .single()
     
     if (fetchError || !onboarding) {
-      throw new Error("Onboarding não encontrado")
+      return constructServerResponse({
+        success: false,
+        error: "Onboarding não encontrado"
+      })
     }
     
     // Verifica se o onboarding pertence a um funcionário da empresa
     if (onboarding.employees[0]?.company_id !== company.id) {
-      throw new Error("Este onboarding não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Este onboarding não pertence à sua empresa"
+      })
     }
     
     // Apenas admin ou o próprio funcionário pode atualizar o status
     if (!company.isAdmin && onboarding.employee_id !== company.userId) {
-      throw new Error("Você não tem permissão para atualizar este onboarding")
+      return constructServerResponse({
+        success: false,
+        error: "Você não tem permissão para atualizar este onboarding"
+      })
     }
     
     const updateData: EmployeeOnboardingUpdate = { 
@@ -692,12 +845,16 @@ export async function updateOnboardingStatus(onboardingId: string, status: Onboa
     // Revalida a página
     revalidatePath("/dashboard/onboarding")
     
-    return { success: true, data }
+    return constructServerResponse({
+      success: true,
+      data,
+      message: `Status de onboarding atualizado para ${status}`
+    })
   } catch (error) {
     console.error("Erro ao atualizar status do onboarding:", error)
-    return { 
-      success: false, 
+    return constructServerResponse({
+      success: false,
       error: error instanceof Error ? error.message : "Erro desconhecido ao atualizar status"
-    }
+    })
   }
 } 

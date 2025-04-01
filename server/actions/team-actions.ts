@@ -12,17 +12,21 @@ import type {
   TeamWithMembers,
   SubteamWithMembers
 } from "@/lib/types/teams"
+import { constructServerResponse, ServerResponse } from "@/lib/utils/server-response"
 
 /**
  * Obtém todas as equipes de uma empresa
  * @returns Lista de equipes
  */
-export async function getTeams(): Promise<TeamWithManager[]> {
+export async function getTeams(): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -40,13 +44,23 @@ export async function getTeams(): Promise<TeamWithManager[]> {
     
     if (error) {
       console.error("Erro ao buscar equipes:", error)
-      throw new Error("Não foi possível buscar as equipes")
+      return constructServerResponse({
+        success: false,
+        error: "Não foi possível buscar as equipes"
+      })
     }
     
-    return data as unknown as TeamWithManager[]
+    return constructServerResponse({
+      success: true,
+      data: data as unknown as TeamWithManager[],
+      message: "Equipes obtidas com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar equipes:", error)
-    throw new Error(`Não foi possível buscar as equipes: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar as equipes: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -55,12 +69,15 @@ export async function getTeams(): Promise<TeamWithManager[]> {
  * @param teamId ID da equipe
  * @returns Equipe com membros
  */
-export async function getTeamWithMembers(teamId: string): Promise<TeamWithMembers> {
+export async function getTeamWithMembers(teamId: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -79,12 +96,18 @@ export async function getTeamWithMembers(teamId: string): Promise<TeamWithMember
     
     if (teamError) {
       console.error("Erro ao buscar equipe:", teamError)
-      throw new Error("Equipe não encontrada")
+      return constructServerResponse({
+        success: false,
+        error: "Equipe não encontrada"
+      })
     }
     
     // Verifica se a equipe pertence à empresa do usuário
     if (team.company_id !== company.id) {
-      throw new Error("Esta equipe não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Esta equipe não pertence à sua empresa"
+      })
     }
     
     // Busca as subequipes
@@ -101,7 +124,10 @@ export async function getTeamWithMembers(teamId: string): Promise<TeamWithMember
     
     if (subteamsError) {
       console.error("Erro ao buscar subequipes:", subteamsError)
-      throw new Error("Não foi possível buscar as subequipes")
+      return constructServerResponse({
+        success: false,
+        error: "Não foi possível buscar as subequipes"
+      })
     }
     
     // Busca os membros da equipe
@@ -117,17 +143,29 @@ export async function getTeamWithMembers(teamId: string): Promise<TeamWithMember
     
     if (membersError) {
       console.error("Erro ao buscar membros da equipe:", membersError)
-      throw new Error("Não foi possível buscar os membros da equipe")
+      return constructServerResponse({
+        success: false,
+        error: "Não foi possível buscar os membros da equipe"
+      })
     }
     
-    return {
+    const teamWithData = {
       ...team,
       subteams: subteams || [],
       members: members || []
-    } as unknown as TeamWithMembers
+    } as unknown as TeamWithMembers;
+    
+    return constructServerResponse({
+      success: true,
+      data: teamWithData,
+      message: "Detalhes da equipe obtidos com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar detalhes da equipe:", error)
-    throw new Error(`Não foi possível buscar os detalhes da equipe: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar os detalhes da equipe: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -136,12 +174,15 @@ export async function getTeamWithMembers(teamId: string): Promise<TeamWithMember
  * @param subteamId ID da subequipe
  * @returns Subequipe com membros
  */
-export async function getSubteamWithMembers(subteamId: string): Promise<SubteamWithMembers> {
+export async function getSubteamWithMembers(subteamId: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -163,12 +204,18 @@ export async function getSubteamWithMembers(subteamId: string): Promise<SubteamW
     
     if (subteamError) {
       console.error("Erro ao buscar subequipe:", subteamError)
-      throw new Error("Subequipe não encontrada")
+      return constructServerResponse({
+        success: false,
+        error: "Subequipe não encontrada"
+      })
     }
     
     // Verifica se a subequipe pertence à empresa do usuário
     if (subteam.team.company_id !== company.id) {
-      throw new Error("Esta subequipe não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Esta subequipe não pertence à sua empresa"
+      })
     }
     
     // Busca os membros da subequipe
@@ -184,15 +231,27 @@ export async function getSubteamWithMembers(subteamId: string): Promise<SubteamW
     
     if (membersError) {
       console.error("Erro ao buscar membros da subequipe:", membersError)
-      throw new Error("Não foi possível buscar os membros da subequipe")
+      return constructServerResponse({
+        success: false,
+        error: "Não foi possível buscar os membros da subequipe"
+      })
     }
     
-    return {
+    const subteamWithData = {
       ...subteam,
       members: members || []
-    } as unknown as SubteamWithMembers
+    } as unknown as SubteamWithMembers;
+    
+    return constructServerResponse({
+      success: true,
+      data: subteamWithData,
+      message: "Detalhes da subequipe obtidos com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar detalhes da subequipe:", error)
-    throw new Error(`Não foi possível buscar os detalhes da subequipe: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar os detalhes da subequipe: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 } 

@@ -13,18 +13,22 @@ import {
 } from "@/lib/types/documents"
 import { dependentCreateSchema, dependentUpdateSchema } from "@/lib/schemas/dependent-schema"
 import { getCurrentCompany } from "@/lib/auth-utils-server"
+import { constructServerResponse, ServerResponse } from "@/lib/utils/server-response"
 
 /**
  * Obtém todos os dependentes de um funcionário
  * @param employeeId ID do funcionário
  * @returns Lista de dependentes
  */
-export async function getDependents(employeeId: string) {
+export async function getDependents(employeeId: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -38,7 +42,10 @@ export async function getDependents(employeeId: string) {
       .single()
     
     if (!employee) {
-      throw new Error("Funcionário não encontrado ou não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado ou não pertence à sua empresa"
+      })
     }
     
     const { data, error } = await supabase
@@ -51,13 +58,17 @@ export async function getDependents(employeeId: string) {
       throw error
     }
     
-    return { success: true, dependents: data as EmployeeDependent[] }
+    return constructServerResponse({
+      success: true,
+      data: data as EmployeeDependent[],
+      message: "Dependentes obtidos com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar dependentes:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao buscar dependentes" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao buscar dependentes"
+    })
   }
 }
 
@@ -66,12 +77,15 @@ export async function getDependents(employeeId: string) {
  * @param dependentId ID do dependente
  * @returns Dados do dependente
  */
-export async function getDependent(dependentId: string) {
+export async function getDependent(dependentId: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -92,19 +106,26 @@ export async function getDependent(dependentId: string) {
     }
     
     if (!data) {
-      throw new Error("Dependente não encontrado ou não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Dependente não encontrado ou não pertence à sua empresa"
+      })
     }
     
     // Remove o join da resposta
     const { employees, ...dependent } = data
     
-    return { success: true, dependent: dependent as unknown as EmployeeDependent }
+    return constructServerResponse({
+      success: true,
+      data: dependent as unknown as EmployeeDependent,
+      message: "Dependente obtido com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar dependente:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao buscar dependente" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao buscar dependente"
+    })
   }
 }
 
@@ -112,16 +133,22 @@ export async function getDependent(dependentId: string) {
  * Cria um novo dependente
  * @param formData Dados do formulário do dependente
  */
-export async function createDependent(formData: FormData) {
+export async function createDependent(formData: FormData): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem criar dependentes")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem criar dependentes"
+      })
     }
     
     const data = Object.fromEntries(formData.entries()) as Record<string, any>
@@ -135,7 +162,10 @@ export async function createDependent(formData: FormData) {
     
     if (!validationResult.success) {
       console.error("Erro de validação:", validationResult.error.format())
-      throw new Error(`Dados inválidos: ${JSON.stringify(validationResult.error.format())}`)
+      return constructServerResponse({
+        success: false,
+        error: `Dados inválidos: ${JSON.stringify(validationResult.error.format())}`
+      })
     }
     
     const supabase = await createClient()
@@ -149,7 +179,10 @@ export async function createDependent(formData: FormData) {
       .single()
     
     if (!employee) {
-      throw new Error("Funcionário não encontrado ou não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado ou não pertence à sua empresa"
+      })
     }
     
     // Insere o dependente
@@ -166,13 +199,17 @@ export async function createDependent(formData: FormData) {
     // Revalida as páginas relevantes
     revalidatePath(`/dashboard/employees/${employee.id}`)
     
-    return { success: true, dependent: dependent as EmployeeDependent }
+    return constructServerResponse({
+      success: true,
+      data: dependent as EmployeeDependent,
+      message: "Dependente criado com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao criar dependente:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao criar dependente" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao criar dependente"
+    })
   }
 }
 
@@ -181,16 +218,22 @@ export async function createDependent(formData: FormData) {
  * @param employeeId ID do funcionário
  * @param dependents Lista de dependentes
  */
-export async function createDependentsBatch(employeeId: string, dependents: EmployeeDependentInsert[]) {
+export async function createDependentsBatch(employeeId: string, dependents: EmployeeDependentInsert[]): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem criar dependentes")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem criar dependentes"
+      })
     }
     
     const supabase = await createClient()
@@ -204,7 +247,10 @@ export async function createDependentsBatch(employeeId: string, dependents: Empl
       .single()
     
     if (!employee) {
-      throw new Error("Funcionário não encontrado ou não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado ou não pertence à sua empresa"
+      })
     }
     
     // Verifica se todos os dependentes pertencem ao mesmo funcionário
@@ -225,13 +271,17 @@ export async function createDependentsBatch(employeeId: string, dependents: Empl
     // Revalida as páginas relevantes
     revalidatePath(`/dashboard/employees/${employeeId}`)
     
-    return { success: true, dependents: data as EmployeeDependent[] }
+    return constructServerResponse({
+      success: true,
+      data: data as EmployeeDependent[],
+      message: `${data?.length || 0} dependentes criados com sucesso`
+    })
   } catch (error) {
     console.error("Erro ao criar dependentes:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao criar dependentes" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao criar dependentes"
+    })
   }
 }
 
@@ -240,16 +290,22 @@ export async function createDependentsBatch(employeeId: string, dependents: Empl
  * @param dependentId ID do dependente
  * @param formData Dados do formulário do dependente
  */
-export async function updateDependent(dependentId: string, formData: FormData) {
+export async function updateDependent(dependentId: string, formData: FormData): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem atualizar dependentes")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem atualizar dependentes"
+      })
     }
     
     const data = Object.fromEntries(formData.entries()) as Record<string, any>
@@ -263,7 +319,10 @@ export async function updateDependent(dependentId: string, formData: FormData) {
     
     if (!validationResult.success) {
       console.error("Erro de validação:", validationResult.error.format())
-      throw new Error(`Dados inválidos: ${JSON.stringify(validationResult.error.format())}`)
+      return constructServerResponse({
+        success: false,
+        error: `Dados inválidos: ${JSON.stringify(validationResult.error.format())}`
+      })
     }
     
     const supabase = await createClient()
@@ -280,7 +339,10 @@ export async function updateDependent(dependentId: string, formData: FormData) {
       .single()
     
     if (!dependentData) {
-      throw new Error("Dependente não encontrado ou não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Dependente não encontrado ou não pertence à sua empresa"
+      })
     }
     
     // Atualiza o dependente
@@ -299,13 +361,17 @@ export async function updateDependent(dependentId: string, formData: FormData) {
     const employeeId = (dependentData.employees as any).id
     revalidatePath(`/dashboard/employees/${employeeId}`)
     
-    return { success: true, dependent: updatedDependent as EmployeeDependent }
+    return constructServerResponse({
+      success: true,
+      data: updatedDependent as EmployeeDependent,
+      message: "Dependente atualizado com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao atualizar dependente:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao atualizar dependente" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao atualizar dependente"
+    })
   }
 }
 
@@ -313,16 +379,22 @@ export async function updateDependent(dependentId: string, formData: FormData) {
  * Remove um dependente
  * @param dependentId ID do dependente
  */
-export async function deleteDependent(dependentId: string) {
+export async function deleteDependent(dependentId: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem excluir dependentes")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem excluir dependentes"
+      })
     }
     
     const supabase = await createClient()
@@ -339,7 +411,10 @@ export async function deleteDependent(dependentId: string) {
       .single()
     
     if (!dependent) {
-      throw new Error("Dependente não encontrado ou não pertence à sua empresa")
+      return constructServerResponse({
+        success: false,
+        error: "Dependente não encontrado ou não pertence à sua empresa"
+      })
     }
     
     // Remove o dependente
@@ -356,12 +431,15 @@ export async function deleteDependent(dependentId: string) {
     const employeeId = (dependent.employees as any).id
     revalidatePath(`/dashboard/employees/${employeeId}`)
     
-    return { success: true }
+    return constructServerResponse({
+      success: true,
+      message: "Dependente excluído com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao excluir dependente:", error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Erro desconhecido ao excluir dependente" 
-    }
+    return constructServerResponse({
+      success: false,
+      error: error instanceof Error ? error.message : "Erro desconhecido ao excluir dependente"
+    })
   }
 } 

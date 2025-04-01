@@ -15,18 +15,22 @@ import type {
   TimeOffStatus,
   TimeOffFilters
 } from "@/lib/types/time-off"
+import { constructServerResponse, ServerResponse } from "@/lib/utils/server-response"
 
 /**
  * Obtém todas as solicitações de férias e ausências de um funcionário ou empresa
  * @param employeeId ID do funcionário (se null, busca de toda a empresa)
  * @returns Lista de solicitações
  */
-export async function getTimeOffs(employeeId: string | null = null): Promise<TimeOffWithEmployee[]> {
+export async function getTimeOffs(employeeId: string | null = null): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -39,12 +43,18 @@ export async function getTimeOffs(employeeId: string | null = null): Promise<Tim
       .single()
     
     if (employeeError || !employee) {
-      throw new Error("Funcionário não encontrado")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado"
+      })
     }
     
     // Se não for admin, só pode ver suas próprias solicitações
     if (employeeId && employeeId !== employee.id && !company.isAdmin) {
-      throw new Error("Sem permissão para ver solicitações de outros funcionários")
+      return constructServerResponse({
+        success: false,
+        error: "Sem permissão para ver solicitações de outros funcionários"
+      })
     }
     
     // Define o ID do funcionário para filtrar (null para admins verem todos)
@@ -88,10 +98,17 @@ export async function getTimeOffs(employeeId: string | null = null): Promise<Tim
       throw error
     }
     
-    return data as unknown as TimeOffWithEmployee[]
+    return constructServerResponse({
+      success: true,
+      data: data as unknown as TimeOffWithEmployee[],
+      message: "Solicitações obtidas com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar solicitações:", error)
-    throw new Error(`Não foi possível buscar as solicitações: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar as solicitações: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -100,16 +117,22 @@ export async function getTimeOffs(employeeId: string | null = null): Promise<Tim
  * @param timeOffId ID da solicitação
  * @returns Detalhes da solicitação
  */
-export async function getTimeOff(timeOffId: string): Promise<TimeOffWithEmployee> {
+export async function getTimeOff(timeOffId: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     if (!timeOffId) {
-      throw new Error("ID da solicitação não fornecido")
+      return constructServerResponse({
+        success: false,
+        error: "ID da solicitação não fornecido"
+      })
     }
     
     const supabase = await createClient()
@@ -145,7 +168,10 @@ export async function getTimeOff(timeOffId: string): Promise<TimeOffWithEmployee
       .single()
     
     if (!employee) {
-      throw new Error("Funcionário não encontrado")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado"
+      })
     }
     
     // Verificar se pertence à mesma empresa ou se é o próprio funcionário ou se é admin
@@ -154,13 +180,23 @@ export async function getTimeOff(timeOffId: string): Promise<TimeOffWithEmployee
       data.employee_id !== employee.id && 
       !company.isAdmin
     ) {
-      throw new Error("Sem permissão para acessar esta solicitação")
+      return constructServerResponse({
+        success: false,
+        error: "Sem permissão para acessar esta solicitação"
+      })
     }
     
-    return data as unknown as TimeOffWithEmployee
+    return constructServerResponse({
+      success: true,
+      data: data as unknown as TimeOffWithEmployee,
+      message: "Solicitação obtida com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar solicitação:", error)
-    throw new Error(`Não foi possível buscar a solicitação: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar a solicitação: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -176,12 +212,15 @@ export async function createTimeOff(data: {
   end_date: string
   reason: string
   total_days: number
-}): Promise<TimeOff> {
+}): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
@@ -194,47 +233,51 @@ export async function createTimeOff(data: {
       .single()
     
     if (employeeError || !employee) {
-      throw new Error("Funcionário não encontrado")
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado"
+      })
     }
     
     // Se não for admin, só pode criar solicitações para si mesmo
     if (data.employee_id !== employee.id && !company.isAdmin) {
-      throw new Error("Sem permissão para criar solicitações para outros funcionários")
+      return constructServerResponse({
+        success: false,
+        error: "Sem permissão para criar solicitações para outros funcionários"
+      })
     }
     
-    // Verifica se o funcionário alvo pertence à empresa correta
-    if (data.employee_id !== employee.id) {
+    // Verificar se o funcionário pertence à empresa
+    if (company.isAdmin && data.employee_id !== employee.id) {
       const { data: targetEmployee, error: targetError } = await supabase
         .from("employees")
-        .select("company_id")
+        .select("id, company_id")
         .eq("id", data.employee_id)
+        .eq("company_id", employee.company_id)
         .single()
       
       if (targetError || !targetEmployee) {
-        throw new Error("Funcionário alvo não encontrado")
-      }
-      
-      if (targetEmployee.company_id !== employee.company_id) {
-        throw new Error("Funcionário alvo não pertence à sua empresa")
+        return constructServerResponse({
+          success: false,
+          error: "Funcionário alvo não encontrado ou não pertence à sua empresa"
+        })
       }
     }
     
-    // Prepara os dados da solicitação
-    const timeOff: TimeOffInsert = {
+    // Inserir a solicitação
+    const timeOffData: TimeOffInsert = {
       employee_id: data.employee_id,
       type: data.type,
-      status: "pending",
-      reason: data.reason,
       start_date: data.start_date,
       end_date: data.end_date,
-      total_days: data.total_days,
-      created_at: new Date().toISOString()
+      reason: data.reason,
+      status: "pending",
+      total_days: data.total_days
     }
     
-    // Cria a solicitação
     const { data: createdTimeOff, error } = await supabase
       .from("time_off")
-      .insert(timeOff)
+      .insert(timeOffData)
       .select()
       .single()
     
@@ -242,13 +285,21 @@ export async function createTimeOff(data: {
       throw error
     }
     
-    // Revalida as páginas
+    // Revalidar páginas
     revalidatePath("/dashboard/time-off")
+    revalidatePath(`/dashboard/employees/${data.employee_id}`)
     
-    return createdTimeOff
+    return constructServerResponse({
+      success: true,
+      data: createdTimeOff as TimeOff,
+      message: "Solicitação criada com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao criar solicitação:", error)
-    throw new Error(`Não foi possível criar a solicitação: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível criar a solicitação: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
@@ -258,54 +309,74 @@ export async function createTimeOff(data: {
  * @param status Novo status
  * @returns Solicitação atualizada
  */
-export async function updateTimeOffStatus(id: string, status: TimeOffStatus): Promise<TimeOff> {
+export async function updateTimeOffStatus(id: string, status: TimeOffStatus): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
-    // Apenas administradores podem aprovar/rejeitar solicitações
+    if (!id) {
+      return constructServerResponse({
+        success: false,
+        error: "ID da solicitação não fornecido"
+      })
+    }
+    
     if (!company.isAdmin) {
-      throw new Error("Apenas administradores podem atualizar o status de solicitações")
+      return constructServerResponse({
+        success: false,
+        error: "Apenas administradores podem aprovar/rejeitar solicitações"
+      })
     }
     
     const supabase = await createClient()
     
-    // Verifica se o usuário é um funcionário
-    const { data: employee, error: employeeError } = await supabase
+    // Busca a solicitação
+    const { data: timeOff, error: fetchError } = await supabase
+      .from("time_off")
+      .select("*, employees:employee_id(company_id)")
+      .eq("id", id)
+      .single()
+    
+    if (fetchError || !timeOff) {
+      return constructServerResponse({
+        success: false,
+        error: "Solicitação não encontrada"
+      })
+    }
+    
+    // Verifica se o funcionário pertence à empresa do usuário
+    const { data: employee } = await supabase
       .from("employees")
       .select("id, company_id")
       .eq("user_id", company.userId)
       .single()
     
-    if (employeeError || !employee) {
-      throw new Error("Funcionário não encontrado")
+    if (!employee) {
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado"
+      })
     }
     
-    // Verifica se a solicitação existe e pertence à mesma empresa
-    const { data: timeOff, error: timeOffError } = await supabase
-      .from("time_off")
-      .select(`*, employees:employee_id(company_id)`)
-      .eq("id", id)
-      .single()
-    
-    if (timeOffError || !timeOff) {
-      throw new Error("Solicitação não encontrada")
+    // Verificar se pertence à mesma empresa
+    if (timeOff.employees?.company_id !== employee.company_id) {
+      return constructServerResponse({
+        success: false,
+        error: "Sem permissão para atualizar esta solicitação"
+      })
     }
     
-    const isSameCompany = timeOff.employees[0]?.company_id === employee.company_id
-    
-    if (!isSameCompany) {
-      throw new Error("Sem permissão para atualizar esta solicitação")
-    }
-    
-    // Atualiza o status
+    // Atualizar o status
     const updateData: TimeOffUpdate = {
       status,
-      approved_by: employee.id,
-      approved_at: new Date().toISOString()
+      approved_by: status === "approved" ? employee.id : null,
+      approved_at: status === "approved" ? new Date().toISOString() : null
     }
     
     const { data: updatedTimeOff, error } = await supabase
@@ -319,75 +390,121 @@ export async function updateTimeOffStatus(id: string, status: TimeOffStatus): Pr
       throw error
     }
     
-    // Se foi aprovada e é férias, atualiza o status do funcionário
-    if (status === "approved" && timeOff.type === "vacation") {
-      const { error: updateError } = await supabase
-        .from("employees")
-        .update({ status: "vacation" })
-        .eq("id", timeOff.employee_id)
-      
-      if (updateError) {
-        console.error("Erro ao atualizar status do funcionário:", updateError)
-      }
-    }
-    
-    // Revalida as páginas
+    // Revalidar páginas
     revalidatePath("/dashboard/time-off")
+    revalidatePath(`/dashboard/employees/${timeOff.employee_id}`)
     
-    return updatedTimeOff
+    return constructServerResponse({
+      success: true,
+      data: updatedTimeOff as TimeOff,
+      message: status === "approved" 
+        ? "Solicitação aprovada com sucesso" 
+        : "Solicitação rejeitada com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao atualizar status da solicitação:", error)
-    throw new Error(`Não foi possível atualizar o status da solicitação: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível atualizar a solicitação: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
 /**
  * Remove uma solicitação
  * @param id ID da solicitação
- * @returns Verdadeiro se a remoção for bem-sucedida
+ * @returns Status da operação
  */
-export async function deleteTimeOff(id: string): Promise<boolean> {
+export async function deleteTimeOff(id: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    if (!id) {
+      return constructServerResponse({
+        success: false,
+        error: "ID da solicitação não fornecido"
+      })
     }
     
     const supabase = await createClient()
     
-    // Verifica se o usuário é um funcionário
-    const { data: employee, error: employeeError } = await supabase
+    // Busca a solicitação
+    const { data: timeOff, error: fetchError } = await supabase
+      .from("time_off")
+      .select(`
+        id,
+        employee_id, 
+        status, 
+        employees:employee_id (
+          id,
+          company_id
+        )
+      `)
+      .eq("id", id)
+      .single()
+    
+    if (fetchError || !timeOff) {
+      return constructServerResponse({
+        success: false,
+        error: "Solicitação não encontrada"
+      })
+    }
+    
+    // Obtém o usuário
+    const { data: employee } = await supabase
       .from("employees")
       .select("id, company_id")
       .eq("user_id", company.userId)
       .single()
     
-    if (employeeError || !employee) {
-      throw new Error("Funcionário não encontrado")
+    if (!employee) {
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado"
+      })
     }
     
-    // Verifica se a solicitação existe e se o usuário tem permissão
-    const { data: timeOff, error: timeOffError } = await supabase
-      .from("time_off")
-      .select("employee_id, status, employees:employee_id(company_id)")
-      .eq("id", id)
-      .single()
-    
-    if (timeOffError || !timeOff) {
-      throw new Error("Solicitação não encontrada")
+    // Verifica permissão: admin pode excluir qualquer solicitação da empresa,
+    // funcionário comum só pode excluir suas próprias solicitações pendentes
+    if (!company.isAdmin) {
+      if (timeOff.employee_id !== employee.id) {
+        return constructServerResponse({
+          success: false,
+          error: "Sem permissão para excluir solicitações de outros funcionários"
+        })
+      }
+      
+      if (timeOff.status !== "pending") {
+        return constructServerResponse({
+          success: false,
+          error: "Somente solicitações pendentes podem ser excluídas"
+        })
+      }
+    } else {
+      // Verifica se pertence à mesma empresa (para admin)
+      // Obtenha a company_id do funcionário associado à solicitação
+      const { data: timeOffEmployee } = await supabase
+        .from("employees")
+        .select("company_id")
+        .eq("id", timeOff.employee_id)
+        .single()
+        
+      if (!timeOffEmployee || timeOffEmployee.company_id !== employee.company_id) {
+        return constructServerResponse({
+          success: false,
+          error: "Sem permissão para excluir esta solicitação"
+        })
+      }
     }
     
-    // Verificar se é administrador, ou se a solicitação pertence ao usuário e está pendente
-    const isOwnRequest = timeOff.employee_id === employee.id
-    const isPending = timeOff.status === "pending"
-    const isSameCompany = timeOff.employees[0]?.company_id === employee.company_id
-    
-    if ((!company.isAdmin && !isOwnRequest) || (!company.isAdmin && !isPending) || !isSameCompany) {
-      throw new Error("Sem permissão para excluir esta solicitação")
-    }
-    
-    // Remove a solicitação
+    // Exclui a solicitação
     const { error } = await supabase
       .from("time_off")
       .delete()
@@ -397,92 +514,128 @@ export async function deleteTimeOff(id: string): Promise<boolean> {
       throw error
     }
     
-    // Revalida as páginas
+    // Revalidar páginas
     revalidatePath("/dashboard/time-off")
+    revalidatePath(`/dashboard/employees/${timeOff.employee_id}`)
     
-    return true
+    return constructServerResponse({
+      success: true,
+      message: "Solicitação excluída com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao excluir solicitação:", error)
-    throw new Error(`Não foi possível excluir a solicitação: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível excluir a solicitação: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
 /**
- * Verifica se um funcionário está de férias ou em licença
+ * Verifica se um funcionário está em férias atualmente
  * @param employeeId ID do funcionário
- * @returns Verdadeiro se o funcionário estiver de férias ou em licença
+ * @returns true se estiver em férias
  */
-export async function isEmployeeOnTimeOff(employeeId: string): Promise<boolean> {
+export async function isEmployeeOnTimeOff(employeeId: string): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
+    }
+    
+    if (!employeeId) {
+      return constructServerResponse({
+        success: false,
+        error: "ID do funcionário não fornecido"
+      })
     }
     
     const supabase = await createClient()
     
+    // Verifica se o funcionário pertence à empresa
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("id, company_id")
+      .eq("id", employeeId)
+      .eq("company_id", company.id)
+      .single()
+    
+    if (!employee) {
+      return constructServerResponse({
+        success: false,
+        error: "Funcionário não encontrado ou não pertence à sua empresa"
+      })
+    }
+    
     const today = new Date().toISOString().split('T')[0]
     
-    const { data, error } = await supabase
+    // Busca solicitações aprovadas que incluem a data atual
+    const { data } = await supabase
       .from("time_off")
-      .select("id")
+      .select("*")
       .eq("employee_id", employeeId)
       .eq("status", "approved")
       .lte("start_date", today)
       .gte("end_date", today)
-      .limit(1)
     
-    if (error) {
-      throw error
-    }
+    const isOnTimeOff = data && data.length > 0
     
-    return data.length > 0
+    return constructServerResponse({
+      success: true,
+      data: isOnTimeOff,
+      message: isOnTimeOff ? "Funcionário está em férias/ausência" : "Funcionário não está em férias/ausência"
+    })
   } catch (error) {
-    console.error("Erro ao verificar status do funcionário:", error)
-    return false
+    console.error("Erro ao verificar status de férias:", error)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível verificar o status: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 }
 
 /**
- * Obtém todos os funcionários da empresa
+ * Obtém a lista de funcionários para o seletor
  * @returns Lista de funcionários
  */
-export async function getEmployees(): Promise<{ id: string, full_name: string }[]> {
+export async function getEmployees(): Promise<ServerResponse> {
   try {
     const company = await getCurrentCompany()
     
     if (!company) {
-      throw new Error("Empresa não encontrada ou usuário não autenticado")
+      return constructServerResponse({
+        success: false,
+        error: "Empresa não encontrada ou usuário não autenticado"
+      })
     }
     
     const supabase = await createClient()
     
-    // Verifica se o usuário é um funcionário
-    const { data: employee, error: employeeError } = await supabase
-      .from("employees")
-      .select("company_id")
-      .eq("user_id", company.userId)
-      .single()
-    
-    if (employeeError || !employee) {
-      throw new Error("Funcionário não encontrado")
-    }
-    
-    // Busca todos os funcionários da empresa
+    // Obtém os funcionários da empresa
     const { data, error } = await supabase
       .from("employees")
       .select("id, full_name")
-      .eq("company_id", employee.company_id)
+      .eq("company_id", company.id)
       .order("full_name")
     
     if (error) {
       throw error
     }
     
-    return data
+    return constructServerResponse({
+      success: true,
+      data,
+      message: "Funcionários obtidos com sucesso"
+    })
   } catch (error) {
     console.error("Erro ao buscar funcionários:", error)
-    throw new Error(`Não foi possível buscar os funcionários: ${error instanceof Error ? error.message : String(error)}`)
+    return constructServerResponse({
+      success: false,
+      error: `Não foi possível buscar funcionários: ${error instanceof Error ? error.message : String(error)}`
+    })
   }
 } 
