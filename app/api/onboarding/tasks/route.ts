@@ -1,28 +1,33 @@
 /**
  * API para gerenciamento de tarefas de onboarding
+ * Implementa endpoints RESTful para a coleção de tarefas de onboarding
  * @file app/api/onboarding/tasks/route.ts
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { getCurrentCompany } from "@/lib/auth-utils-server"
 import { onboardingService } from "@/lib/services/onboarding-service"
 import { onboardingTaskCreateSchema } from "@/lib/schemas/onboarding-schema"
+import { successResponse, errorResponse, HttpStatus, ErrorCodes } from "@/lib/utils/api-response"
 
 /**
- * GET - Obter lista de tarefas de onboarding
- * @param request Requisição
- * @returns Resposta com a lista de tarefas de onboarding
+ * GET - Obtém lista de tarefas de onboarding com filtros
+ * @param request Requisição com parâmetros de consulta
+ * @returns Resposta com lista de tarefas de onboarding
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(request: NextRequest) {
   try {
-    // Verifica se o usuário está autenticado
+    // Verifica autenticação e obtém dados da empresa
     const company = await getCurrentCompany()
     
     if (!company) {
-      return NextResponse.json(
-        { error: { message: "Não autorizado" } },
-        { status: 401 }
-      )
+      return errorResponse({
+        error: {
+          message: "Não autorizado",
+          code: ErrorCodes.AUTHENTICATION_ERROR
+        },
+        status: HttpStatus.UNAUTHORIZED
+      })
     }
     
     // Obtém o ID da empresa da query string
@@ -31,48 +36,88 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     
     // Verifica se o usuário tem acesso à empresa solicitada
     if (companyId !== company.id && !company.isAdmin) {
-      return NextResponse.json(
-        { error: { message: "Acesso negado a esta empresa" } },
-        { status: 403 }
-      )
+      return errorResponse({
+        error: {
+          message: "Acesso negado a esta empresa",
+          code: ErrorCodes.AUTHORIZATION_ERROR
+        },
+        status: HttpStatus.FORBIDDEN
+      })
     }
+    
+    // Aplica filtros opcionais
+    const category = searchParams.get("category") || undefined
     
     // Obtém tarefas
     const tasks = await onboardingService.getTasks(companyId)
     
-    return NextResponse.json(tasks)
-  } catch (error) {
-    console.error("Erro ao buscar tarefas de onboarding:", error)
+    // Filtra por categoria, se especificado
+    let filteredTasks = tasks
+    if (category) {
+      filteredTasks = tasks.filter(task => task.category === category)
+    }
     
-    return NextResponse.json(
-      { error: { message: "Erro ao buscar tarefas de onboarding", details: error } },
-      { status: 500 }
-    )
+    // Aplica paginação
+    const page = parseInt(searchParams.get("page") || "1")
+    const pageSize = parseInt(searchParams.get("pageSize") || "10")
+    const startIndex = (page - 1) * pageSize
+    const endIndex = page * pageSize
+    const paginatedTasks = filteredTasks.slice(startIndex, endIndex)
+    const totalItems = filteredTasks.length
+    const totalPages = Math.ceil(totalItems / pageSize)
+    
+    return successResponse({
+      data: paginatedTasks,
+      message: `${totalItems} tarefas encontradas`,
+      meta: {
+        page,
+        pageSize,
+        totalItems,
+        totalPages
+      }
+    })
+  } catch (error) {
+    console.error("[ONBOARDING_TASKS_GET]", error)
+    
+    return errorResponse({
+      error: {
+        message: "Erro ao buscar tarefas de onboarding",
+        details: error instanceof Error ? error.message : String(error),
+        code: ErrorCodes.INTERNAL_ERROR
+      },
+      status: HttpStatus.INTERNAL_SERVER_ERROR
+    })
   }
 }
 
 /**
- * POST - Criar nova tarefa de onboarding
- * @param request Requisição
+ * POST - Cria uma nova tarefa de onboarding
+ * @param request Requisição com dados da tarefa
  * @returns Resposta com a tarefa criada
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(request: NextRequest) {
   try {
-    // Verifica se o usuário está autenticado e é administrador
+    // Verifica autenticação e obtém dados da empresa
     const company = await getCurrentCompany()
     
     if (!company) {
-      return NextResponse.json(
-        { error: { message: "Não autorizado" } },
-        { status: 401 }
-      )
+      return errorResponse({
+        error: {
+          message: "Não autorizado",
+          code: ErrorCodes.AUTHENTICATION_ERROR
+        },
+        status: HttpStatus.UNAUTHORIZED
+      })
     }
     
     if (!company.isAdmin) {
-      return NextResponse.json(
-        { error: { message: "Apenas administradores podem criar tarefas" } },
-        { status: 403 }
-      )
+      return errorResponse({
+        error: {
+          message: "Apenas administradores podem criar tarefas",
+          code: ErrorCodes.AUTHORIZATION_ERROR
+        },
+        status: HttpStatus.FORBIDDEN
+      })
     }
     
     // Obtém os dados do corpo da requisição
@@ -82,25 +127,87 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const validationResult = onboardingTaskCreateSchema.safeParse(body)
     
     if (!validationResult.success) {
-      return NextResponse.json(
-        { error: { message: "Dados inválidos", details: validationResult.error.format() } },
-        { status: 400 }
-      )
+      return errorResponse({
+        error: {
+          message: "Dados inválidos",
+          details: validationResult.error.format(),
+          code: ErrorCodes.VALIDATION_ERROR
+        },
+        status: HttpStatus.UNPROCESSABLE_ENTITY
+      })
     }
     
     // Cria a tarefa
-    const task = await onboardingService.createTask({
-      ...validationResult.data,
-      company_id: company.id  // Garante que a tarefa seja criada para a empresa do usuário
-    })
-    
-    return NextResponse.json(task)
+    try {
+      const task = await onboardingService.createTask({
+        ...validationResult.data,
+        company_id: company.id  // Garante que a tarefa seja criada para a empresa do usuário
+      })
+      
+      return successResponse({
+        data: task,
+        message: "Tarefa de onboarding criada com sucesso",
+        status: HttpStatus.CREATED
+      })
+    } catch (error) {
+      return errorResponse({
+        error: {
+          message: "Erro ao criar tarefa",
+          details: error instanceof Error ? error.message : String(error),
+          code: ErrorCodes.INTERNAL_ERROR
+        },
+        status: HttpStatus.INTERNAL_SERVER_ERROR
+      })
+    }
   } catch (error) {
-    console.error("Erro ao criar tarefa de onboarding:", error)
+    console.error("[ONBOARDING_TASKS_POST]", error)
     
-    return NextResponse.json(
-      { error: { message: "Erro ao criar tarefa de onboarding", details: error } },
-      { status: 500 }
-    )
+    return errorResponse({
+      error: {
+        message: "Erro ao criar tarefa de onboarding",
+        details: error instanceof Error ? error.message : String(error),
+        code: ErrorCodes.INTERNAL_ERROR
+      },
+      status: HttpStatus.INTERNAL_SERVER_ERROR
+    })
   }
+}
+
+/**
+ * PUT - Método não permitido na rota de coleção
+ */
+export function PUT() {
+  return errorResponse({
+    error: {
+      message: "Método não permitido. Use PUT em /api/onboarding/tasks/[id] para atualizar uma tarefa específica",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+/**
+ * PATCH - Método não permitido na rota de coleção
+ */
+export function PATCH() {
+  return errorResponse({
+    error: {
+      message: "Método não permitido. Use PATCH em /api/onboarding/tasks/[id] para atualizar parcialmente uma tarefa específica",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
+}
+
+/**
+ * DELETE - Método não permitido na rota de coleção
+ */
+export function DELETE() {
+  return errorResponse({
+    error: {
+      message: "Método não permitido. Use DELETE em /api/onboarding/tasks/[id] para remover uma tarefa específica",
+      code: ErrorCodes.VALIDATION_ERROR
+    },
+    status: HttpStatus.METHOD_NOT_ALLOWED
+  })
 } 

@@ -434,6 +434,38 @@ class OnboardingService {
       throw error
     }
   }
+  
+  /**
+   * Atualiza um onboarding
+   * @param onboardingId ID do onboarding
+   * @param data Dados para atualização
+   * @returns Onboarding atualizado
+   */
+  async updateOnboarding(onboardingId: string, data: EmployeeOnboardingUpdate) {
+    try {
+      const supabase = await createClient()
+      
+      const { data: updatedOnboarding, error } = await supabase
+        .from("employee_onboarding")
+        .update({
+          ...data,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", onboardingId)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error("Erro ao atualizar onboarding:", error)
+        throw error
+      }
+      
+      return updatedOnboarding
+    } catch (error) {
+      console.error("Erro ao atualizar onboarding:", error)
+      throw error
+    }
+  }
 }
 
 // Exporta uma instância única do serviço
