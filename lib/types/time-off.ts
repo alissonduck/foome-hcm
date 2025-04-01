@@ -3,7 +3,7 @@
  * Define os tipos utilizados para gerenciar férias e ausências de funcionários
  */
 
-import type { Database } from "./supabase"
+import type { Database } from "../supabase/types"
 
 // Tipo base para time-off
 export type TimeOff = Database["public"]["Tables"]["time_off"]["Row"]
@@ -11,7 +11,18 @@ export type TimeOffInsert = Database["public"]["Tables"]["time_off"]["Insert"]
 export type TimeOffUpdate = Database["public"]["Tables"]["time_off"]["Update"]
 
 // Tipo estendido com dados do funcionário e aprovador
-export interface TimeOffWithEmployee extends TimeOff {
+export interface TimeOffWithEmployee {
+  id: string
+  employee_id: string
+  start_date: string
+  end_date: string
+  reason: string
+  type: string
+  status: string
+  total_days: number
+  created_at?: string
+  approved_by?: string
+  approved_at?: string
   employees?: {
     id: string
     full_name: string

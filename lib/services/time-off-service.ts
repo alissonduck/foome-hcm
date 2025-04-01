@@ -74,6 +74,42 @@ export class TimeOffService {
   }
   
   /**
+   * Filtra solicitações de férias com base em critérios
+   * @param timeOffs Lista de solicitações a ser filtrada
+   * @param filters Critérios de filtragem (status, tipo, termo de busca)
+   * @returns Lista filtrada de solicitações
+   */
+  static filterTimeOffs(timeOffs: TimeOffWithEmployee[], filters: TimeOffFilters): TimeOffWithEmployee[] {
+    return timeOffs.filter(timeOff => {
+      // Filtro por funcionário
+      if (filters.employeeId && filters.employeeId !== "all" && timeOff.employee_id !== filters.employeeId) {
+        return false
+      }
+      
+      // Filtro por status
+      if (filters.status && filters.status !== "all" && timeOff.status !== filters.status) {
+        return false
+      }
+      
+      // Filtro por tipo
+      if (filters.type && filters.type !== "all" && timeOff.type !== filters.type) {
+        return false
+      }
+      
+      // Filtro por termo de busca (no nome do funcionário ou no motivo)
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase()
+        const employeeName = timeOff.employees?.full_name?.toLowerCase() || ''
+        const reason = timeOff.reason?.toLowerCase() || ''
+        
+        return employeeName.includes(searchTerm) || reason.includes(searchTerm)
+      }
+      
+      return true
+    })
+  }
+  
+  /**
    * Obtém uma solicitação específica
    * @param timeOffId ID da solicitação
    * @returns Detalhes da solicitação
@@ -141,6 +177,34 @@ export class TimeOffService {
   }
   
   /**
+   * Atualiza uma solicitação existente
+   * @param id ID da solicitação
+   * @param timeOff Dados atualizados da solicitação
+   * @returns Solicitação atualizada
+   */
+  static async updateTimeOff(id: string, timeOff: TimeOffUpdate): Promise<TimeOff> {
+    try {
+      const supabase = await createClient()
+      
+      const { data, error } = await supabase
+        .from("time_off")
+        .update(timeOff)
+        .eq("id", id)
+        .select()
+        .single()
+      
+      if (error) {
+        throw error
+      }
+      
+      return data
+    } catch (error) {
+      console.error("Erro ao atualizar solicitação:", error)
+      throw new Error("Não foi possível atualizar a solicitação")
+    }
+  }
+  
+  /**
    * Atualiza o status de uma solicitação
    * @param id ID da solicitação
    * @param status Novo status
@@ -200,42 +264,6 @@ export class TimeOffService {
     }
   }
   
-  /**
-   * Filtra solicitações com base em critérios
-   * @param timeOffs Lista de solicitações
-   * @param filters Filtros a serem aplicados
-   * @returns Lista filtrada de solicitações
-   */
-  static filterTimeOffs(timeOffs: TimeOffWithEmployee[], filters: TimeOffFilters): TimeOffWithEmployee[] {
-    return timeOffs.filter(timeOff => {
-      // Filtro por funcionário
-      if (filters.employeeId && filters.employeeId !== "all" && timeOff.employee_id !== filters.employeeId) {
-        return false
-      }
-      
-      // Filtro por status
-      if (filters.status && filters.status !== "all" && timeOff.status !== filters.status) {
-        return false
-      }
-      
-      // Filtro por tipo
-      if (filters.type && filters.type !== "all" && timeOff.type !== filters.type) {
-        return false
-      }
-      
-      // Filtro por busca (motivo ou nome do funcionário)
-      if (filters.search) {
-        const query = filters.search.toLowerCase()
-        return (
-          (timeOff.reason && timeOff.reason.toLowerCase().includes(query)) ||
-          (timeOff.employees?.full_name && timeOff.employees.full_name.toLowerCase().includes(query))
-        )
-      }
-      
-      return true
-    })
-  }
-
   /**
    * Verifica se um funcionário está de férias ou em licença
    * @param employeeId ID do funcionário
