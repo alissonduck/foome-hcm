@@ -40,6 +40,7 @@ interface EmployeeDetailsProps {
   onboardingTasks: any[]
   isAdmin: boolean
   currentUserId: string | undefined
+  companyId: string
   extraTabs?: Array<{
     id: string
     label: string
@@ -56,6 +57,7 @@ interface EmployeeDetailsProps {
  * @param onboardingTasks Tarefas de onboarding do funcionário
  * @param isAdmin Indica se o usuário é administrador
  * @param currentUserId ID do usuário atual
+ * @param companyId ID da empresa associada ao funcionário
  * @param extraTabs Abas adicionais para o componente
  * @returns Componente de detalhes do funcionário
  */
@@ -66,6 +68,7 @@ export default function EmployeeDetails({
   onboardingTasks,
   isAdmin,
   currentUserId,
+  companyId,
   extraTabs = [],
 }: EmployeeDetailsProps) {
   const [activeTab, setActiveTab] = useState("personal")
@@ -285,7 +288,7 @@ export default function EmployeeDetails({
       </AlertDialog>
 
       {/* Diálogo de edição */}
-      <EmployeeEditDialog employee={employee} open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} />
+      <EmployeeEditDialog employee={employee} open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} companyId={companyId} />
     </div>
   )
 }

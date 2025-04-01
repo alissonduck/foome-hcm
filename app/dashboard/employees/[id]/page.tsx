@@ -87,6 +87,7 @@ export default async function EmployeeDetailsPage(props: { params: Promise<{ id:
           onboardingTasks={onboardingTasks || []}
           isAdmin={currentEmployee.is_admin}
           currentUserId={company.userId}
+          companyId={company.id}
           extraTabs={[
             {
               id: "movimentacoes",

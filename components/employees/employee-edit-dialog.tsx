@@ -26,6 +26,43 @@ import { useToast } from "@/components/ui/use-toast"
 import { EmployeeStatus } from "@/lib/types"
 import { FormattedInput } from "@/components/ui/formatted-input"
 
+// Interfaces para as tabelas relacionadas
+interface Team {
+  id: string
+  name: string
+}
+
+interface Subteam {
+  id: string
+  name: string
+  team_id: string
+}
+
+interface Role {
+  id: string
+  title: string
+  description?: string
+}
+
+interface TeamMember {
+  id: string
+  team_id: string
+  employee_id: string
+}
+
+interface SubteamMember {
+  id: string
+  subteam_id: string
+  employee_id: string
+}
+
+interface EmployeeRole {
+  id: string
+  role_id: string
+  employee_id: string
+  is_primary: boolean
+}
+
 /**
  * Props para o componente EmployeeEditDialog
  */
@@ -33,6 +70,7 @@ interface EmployeeEditDialogProps {
   employee: any
   open: boolean
   onOpenChange: (open: boolean) => void
+  companyId: string
 }
 
 /**
@@ -52,11 +90,10 @@ const formSchema = z.object({
   status: z.string(),
 
   // Dados profissionais
-  position: z.string().min(2, {
-    message: "Digite um cargo válido.",
-  }),
-  department: z.string().min(2, {
-    message: "Digite um departamento válido.",
+  teamId: z.string().optional(),
+  subteamId: z.string().optional(),
+  roleId: z.string().min(1, {
+    message: "Selecione um cargo.",
   }),
 })
 
@@ -67,9 +104,20 @@ const formSchema = z.object({
  * @param onOpenChange Função para alterar o estado de abertura
  * @returns Diálogo para edição de funcionário
  */
-export default function EmployeeEditDialog({ employee, open, onOpenChange }: EmployeeEditDialogProps) {
+export default function EmployeeEditDialog({ employee, open, onOpenChange, companyId }: EmployeeEditDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState("basic")
+  const [teams, setTeams] = useState<Team[]>([])
+  const [subteams, setSubteams] = useState<Subteam[]>([])
+  const [filteredSubteams, setFilteredSubteams] = useState<Subteam[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
+  const [employeeTeam, setEmployeeTeam] = useState<TeamMember | null>(null)
+  const [employeeSubteam, setEmployeeSubteam] = useState<SubteamMember | null>(null)
+  const [employeeRole, setEmployeeRole] = useState<EmployeeRole | null>(null)
+  const [loadingTeams, setLoadingTeams] = useState(false)
+  const [loadingSubteams, setLoadingSubteams] = useState(false)
+  const [loadingRoles, setLoadingRoles] = useState(false)
+  const [loadingRelations, setLoadingRelations] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
@@ -82,8 +130,9 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange }: Emp
       email: "",
       phone: "",
       status: "",
-      position: "",
-      department: "",
+      teamId: "",
+      subteamId: "",
+      roleId: "",
     },
   })
 
@@ -95,11 +144,169 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange }: Emp
         email: employee.email,
         phone: employee.phone || "",
         status: employee.status,
-        position: employee.position || "",
-        department: employee.department || "",
+        teamId: "",
+        subteamId: "",
+        roleId: "",
       })
+
+      // Carrega as equipes, subequipes, cargos e relacionamentos do funcionário
+      loadTeams()
+      loadSubteams()
+      loadRoles()
+      loadEmployeeRelations(employee.id)
     }
   }, [open, employee, form])
+
+  // Filtra as subequipes quando a equipe é selecionada
+  useEffect(() => {
+    const teamId = form.watch("teamId")
+    if (teamId) {
+      const filtered = subteams.filter(subteam => subteam.team_id === teamId)
+      setFilteredSubteams(filtered)
+      
+      // Se não houver subequipes disponíveis, limpa o campo
+      if (filtered.length === 0) {
+        form.setValue("subteamId", "")
+      }
+      // Se a subequipe atual não pertence à equipe selecionada, limpa o campo
+      else if (form.watch("subteamId")) {
+        const currentSubteam = filtered.find(st => st.id === form.watch("subteamId"))
+        if (!currentSubteam) {
+          form.setValue("subteamId", "")
+        }
+      }
+    } else {
+      setFilteredSubteams([])
+      form.setValue("subteamId", "")
+    }
+  }, [form.watch("teamId"), subteams, form])
+
+  // Função para carregar as equipes
+  const loadTeams = async () => {
+    setLoadingTeams(true)
+    try {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('name')
+      
+      if (error) throw error
+      setTeams(data || [])
+    } catch (error: any) {
+      console.error('Erro ao carregar equipes:', error.message || error)
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar equipes",
+        description: "Não foi possível carregar a lista de equipes."
+      })
+    } finally {
+      setLoadingTeams(false)
+    }
+  }
+
+  // Função para carregar as subequipes
+  const loadSubteams = async () => {
+    setLoadingSubteams(true)
+    try {
+      const { data, error } = await supabase
+        .from('subteams')
+        .select('*')
+        .order('name')
+      
+      if (error) throw error
+      setSubteams(data || [])
+    } catch (error: any) {
+      console.error('Erro ao carregar subequipes:', error.message || error)
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar subequipes",
+        description: "Não foi possível carregar a lista de subequipes."
+      })
+    } finally {
+      setLoadingSubteams(false)
+    }
+  }
+
+  // Função para carregar os cargos
+  const loadRoles = async () => {
+    setLoadingRoles(true)
+    try {
+      const { data, error } = await supabase
+        .from('roles')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('title')
+      
+      if (error) throw error
+      setRoles(data || [])
+    } catch (error: any) {
+      console.error('Erro ao carregar cargos:', error.message || error)
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar cargos",
+        description: "Não foi possível carregar a lista de cargos."
+      })
+    } finally {
+      setLoadingRoles(false)
+    }
+  }
+
+  // Função para carregar os relacionamentos do funcionário
+  const loadEmployeeRelations = async (employeeId: string) => {
+    setLoadingRelations(true)
+    try {
+      // Carrega o time do funcionário
+      const { data: teamData, error: teamError } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .maybeSingle()
+      
+      if (teamError) throw teamError
+      setEmployeeTeam(teamData)
+      if (teamData) {
+        form.setValue("teamId", teamData.team_id)
+      }
+
+      // Carrega a subequipe do funcionário
+      const { data: subteamData, error: subteamError } = await supabase
+        .from('subteam_members')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .maybeSingle()
+      
+      if (subteamError) throw subteamError
+      setEmployeeSubteam(subteamData)
+      if (subteamData) {
+        form.setValue("subteamId", subteamData.subteam_id)
+      }
+
+      // Carrega o cargo principal do funcionário
+      const { data: roleData, error: roleError } = await supabase
+        .from('employee_roles')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .eq('company_id', companyId)
+        .eq('is_primary', true)
+        .maybeSingle()
+      
+      if (roleError) throw roleError
+      setEmployeeRole(roleData)
+      if (roleData) {
+        form.setValue("roleId", roleData.role_id)
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar relacionamentos do funcionário:', error.message || error)
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar todos os dados relacionados ao funcionário."
+      })
+    } finally {
+      setLoadingRelations(false)
+    }
+  }
 
   /**
    * Função para lidar com o envio do formulário
@@ -115,8 +322,6 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange }: Emp
         email: values.email,
         phone: values.phone,
         status: values.status,
-        position: values.position,
-        department: values.department,
         updated_at: new Date().toISOString(),
       }
 
@@ -125,6 +330,102 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange }: Emp
 
       if (error) {
         throw error
+      }
+
+      // Atualiza os relacionamentos do funcionário
+      const promises = []
+
+      // Atualiza o cargo
+      if (employeeRole) {
+        // Se já existe um cargo, atualiza
+        if (employeeRole.role_id !== values.roleId) {
+          promises.push(
+            supabase.from("employee_roles")
+              .update({ role_id: values.roleId })
+              .eq("id", employeeRole.id)
+          )
+        }
+      } else {
+        // Se não existe um cargo, cria
+        promises.push(
+          supabase.from("employee_roles")
+            .insert({
+              employee_id: employee.id,
+              role_id: values.roleId,
+              company_id: companyId,
+              is_primary: true
+            })
+        )
+      }
+
+      // Atualiza a equipe
+      if (values.teamId) {
+        if (employeeTeam) {
+          // Se já existe uma equipe, atualiza se for diferente
+          if (employeeTeam.team_id !== values.teamId) {
+            promises.push(
+              supabase.from("team_members")
+                .update({ team_id: values.teamId })
+                .eq("id", employeeTeam.id)
+            )
+          }
+        } else {
+          // Se não existe uma equipe, cria
+          promises.push(
+            supabase.from("team_members")
+              .insert({
+                employee_id: employee.id,
+                team_id: values.teamId
+              })
+          )
+        }
+      } else if (employeeTeam) {
+        // Se tinha equipe mas não vai ter mais, remove
+        promises.push(
+          supabase.from("team_members")
+            .delete()
+            .eq("id", employeeTeam.id)
+        )
+      }
+
+      // Atualiza a subequipe
+      if (values.subteamId) {
+        if (employeeSubteam) {
+          // Se já existe uma subequipe, atualiza se for diferente
+          if (employeeSubteam.subteam_id !== values.subteamId) {
+            promises.push(
+              supabase.from("subteam_members")
+                .update({ subteam_id: values.subteamId })
+                .eq("id", employeeSubteam.id)
+            )
+          }
+        } else {
+          // Se não existe uma subequipe, cria
+          promises.push(
+            supabase.from("subteam_members")
+              .insert({
+                employee_id: employee.id,
+                subteam_id: values.subteamId
+              })
+          )
+        }
+      } else if (employeeSubteam) {
+        // Se tinha subequipe mas não vai ter mais, remove
+        promises.push(
+          supabase.from("subteam_members")
+            .delete()
+            .eq("id", employeeSubteam.id)
+        )
+      }
+
+      // Executa todas as atualizações em paralelo
+      const results = await Promise.allSettled(promises)
+      
+      // Verifica se alguma atualização falhou
+      const failed = results.filter(r => r.status === 'rejected')
+      if (failed.length > 0) {
+        console.error("Alguns relacionamentos não puderam ser atualizados:", failed)
+        // Continua mesmo com erros nos relacionamentos, mas loga o erro
       }
 
       // Exibe mensagem de sucesso
@@ -136,13 +437,14 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange }: Emp
       // Fecha o diálogo e atualiza a página
       onOpenChange(false)
       router.refresh()
-    } catch (error) {
-      // Exibe mensagem de erro
+    } catch (error: any) {
+      // Exibe mensagem de erro com mais detalhes
       toast({
         variant: "destructive",
         title: "erro ao atualizar funcionário",
-        description: error instanceof Error ? error.message : "ocorreu um erro ao atualizar o funcionário.",
+        description: error.message || "ocorreu um erro ao atualizar o funcionário."
       })
+      console.error("Erro detalhado:", error)
     } finally {
       setIsSubmitting(false)
     }
@@ -245,31 +547,128 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange }: Emp
               <TabsContent value="professional" className="space-y-4 pt-4">
                 <FormField
                   control={form.control}
-                  name="position"
+                  name="roleId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>cargo</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Analista de RH" {...field} />
-                      </FormControl>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value || ""} 
+                        disabled={loadingRoles || loadingRelations}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um cargo" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {loadingRoles || loadingRelations ? (
+                            <SelectItem value="loading" disabled>
+                              Carregando cargos...
+                            </SelectItem>
+                          ) : roles.length === 0 ? (
+                            <SelectItem value="no-roles" disabled>
+                              Nenhum cargo disponível
+                            </SelectItem>
+                          ) : (
+                            roles.map(role => (
+                              <SelectItem key={role.id} value={role.id}>
+                                {role.title}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="department"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>departamento</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Recursos Humanos" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="teamId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>equipe</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value || ""} 
+                          disabled={loadingTeams || loadingRelations}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione uma equipe (opcional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">Nenhuma equipe</SelectItem>
+                            {loadingTeams || loadingRelations ? (
+                              <SelectItem value="loading" disabled>
+                                Carregando equipes...
+                              </SelectItem>
+                            ) : teams.length === 0 ? (
+                              <SelectItem value="no-teams" disabled>
+                                Nenhuma equipe disponível
+                              </SelectItem>
+                            ) : (
+                              teams.map(team => (
+                                <SelectItem key={team.id} value={team.id}>
+                                  {team.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="subteamId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>subequipe</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value || ""} 
+                          disabled={!form.watch("teamId") || filteredSubteams.length === 0 || loadingSubteams || loadingRelations}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione uma subequipe (opcional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">Nenhuma subequipe</SelectItem>
+                            {loadingSubteams || loadingRelations ? (
+                              <SelectItem value="loading" disabled>
+                                Carregando subequipes...
+                              </SelectItem>
+                            ) : !form.watch("teamId") ? (
+                              <SelectItem value="no-team" disabled>
+                                Selecione uma equipe primeiro
+                              </SelectItem>
+                            ) : filteredSubteams.length === 0 ? (
+                              <SelectItem value="no-subteams" disabled>
+                                Nenhuma subequipe disponível para esta equipe
+                              </SelectItem>
+                            ) : (
+                              filteredSubteams.map(subteam => (
+                                <SelectItem key={subteam.id} value={subteam.id}>
+                                  {subteam.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </TabsContent>
             </Tabs>
 

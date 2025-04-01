@@ -35,6 +35,24 @@ import { useAddress } from "@/hooks/use-address"
 import { createEmployeeAddress } from "@/server/actions/address-actions"
 import { PhotoUpload } from "@/components/photos/photo-upload"
 
+// Interfaces para as tabelas relacionadas
+interface Team {
+  id: string
+  name: string
+}
+
+interface Subteam {
+  id: string
+  name: string
+  team_id: string
+}
+
+interface Role {
+  id: string
+  name: string
+  description?: string
+}
+
 /**
  * Props para o componente EmployeeAdmissionForm
  */
@@ -67,11 +85,10 @@ const formSchema = z.object({
   educationLevel: z.nativeEnum(EducationLevel),
 
   // Dados profissionais
-  position: z.string().min(2, {
-    message: "Cargo inválido.",
-  }),
-  department: z.string().min(2, {
-    message: "Departamento inválido.",
+  teamId: z.string().optional(),
+  subteamId: z.string().optional(),
+  roleId: z.string({
+    required_error: "Selecione um cargo.",
   }),
   contractType: z.nativeEnum(ContractType),
   hireDate: z.string({
@@ -154,6 +171,13 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
   const [dialogOpen, setDialogOpen] = useState(false)
   const [currentDependent, setCurrentDependent] = useState<EmployeeDependent | undefined>(undefined)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [teams, setTeams] = useState<Team[]>([])
+  const [subteams, setSubteams] = useState<Subteam[]>([])
+  const [filteredSubteams, setFilteredSubteams] = useState<Subteam[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
+  const [loadingTeams, setLoadingTeams] = useState(false)
+  const [loadingSubteams, setLoadingSubteams] = useState(false)
+  const [loadingRoles, setLoadingRoles] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
@@ -170,10 +194,143 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
     isLoadingCities
   } = useAddress()
 
+  // Configuração do formulário (mover para antes dos useEffects que usam form.watch)
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      fullName: "",
+      email: "",
+      phone: "",
+      cpf: "",
+      rg: "",
+      maritalStatus: MaritalStatus.SINGLE,
+      educationLevel: EducationLevel.HIGH_SCHOOL,
+      teamId: undefined,
+      subteamId: undefined,
+      roleId: "",
+      contractType: ContractType.CLT,
+      hireDate: "",
+      pis: "",
+      ctps: "",
+      cnpj: "",
+      companyName: "",
+      serviceDescription: "",
+      street: "",
+      number: "",
+      complement: "",
+      neighborhood: "",
+      countryId: "",
+      stateId: "",
+      cityId: "",
+      zipCode: "",
+      bankName: "",
+      accountType: "checking",
+      agency: "",
+      account: "",
+      pixKey: "",
+      emergencyName: "",
+      emergencyRelationship: "",
+      emergencyPhone: "",
+      salary: "",
+    },
+  })
+  
   // Monitor para o estado do diálogo
   useEffect(() => {
     console.log("Estado do diálogo alterado:", dialogOpen);
   }, [dialogOpen]);
+
+  // Carrega as equipes ao montar o componente
+  useEffect(() => {
+    async function fetchTeams() {
+      setLoadingTeams(true)
+      try {
+        const { data, error } = await supabase
+          .from('teams')
+          .select('*')
+          .eq('company_id', companyId)
+          .order('name')
+        
+        if (error) throw error
+        setTeams(data || [])
+      } catch (error) {
+        console.error('Erro ao carregar equipes:', error)
+        toast({
+          variant: "destructive",
+          title: "Erro ao carregar equipes",
+          description: "Não foi possível carregar a lista de equipes."
+        })
+      } finally {
+        setLoadingTeams(false)
+      }
+    }
+    
+    async function fetchSubteams() {
+      setLoadingSubteams(true)
+      try {
+        const { data, error } = await supabase
+          .from('subteams')
+          .select('*')
+          .order('name')
+        
+        if (error) throw error
+        setSubteams(data || [])
+      } catch (error) {
+        console.error('Erro ao carregar subequipes:', error)
+        toast({
+          variant: "destructive",
+          title: "Erro ao carregar subequipes",
+          description: "Não foi possível carregar a lista de subequipes."
+        })
+      } finally {
+        setLoadingSubteams(false)
+      }
+    }
+    
+    async function fetchRoles() {
+      setLoadingRoles(true)
+      try {
+        const { data, error } = await supabase
+          .from('roles')
+          .select('*')
+          .eq('company_id', companyId)
+          .order('name')
+        
+        if (error) throw error
+        setRoles(data || [])
+      } catch (error) {
+        console.error('Erro ao carregar cargos:', error)
+        toast({
+          variant: "destructive",
+          title: "Erro ao carregar cargos",
+          description: "Não foi possível carregar a lista de cargos."
+        })
+      } finally {
+        setLoadingRoles(false)
+      }
+    }
+    
+    fetchTeams()
+    fetchSubteams()
+    fetchRoles()
+  }, [companyId, supabase, toast])
+  
+  // Filtra as subequipes quando a equipe é selecionada
+  useEffect(() => {
+    const teamId = form.watch("teamId")
+    if (teamId) {
+      const filtered = subteams.filter(subteam => subteam.team_id === teamId)
+      setFilteredSubteams(filtered)
+      
+      // Se não houver subequipes disponíveis, limpa o campo
+      if (filtered.length === 0) {
+        form.setValue("subteamId", undefined)
+      }
+    } else {
+      setFilteredSubteams([])
+      form.setValue("subteamId", undefined)
+    }
+  }, [form.watch("teamId"), subteams])
 
   // Função para adicionar um dependente temporário
   const handleAddDependent = (values: DependentFormValues & { employee_id?: string }) => {
@@ -236,50 +393,7 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
     console.log("Estado do diálogo após atualização:", true);
   }
 
-  // Configuração do formulário
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      fullName: "",
-      email: "",
-      phone: "",
-      cpf: "",
-      rg: "",
-      maritalStatus: MaritalStatus.SINGLE,
-      educationLevel: EducationLevel.HIGH_SCHOOL,
-      position: "",
-      department: "",
-      contractType: ContractType.CLT,
-      hireDate: "",
-      pis: "",
-      ctps: "",
-      cnpj: "",
-      companyName: "",
-      serviceDescription: "",
-      street: "",
-      number: "",
-      complement: "",
-      neighborhood: "",
-      countryId: "",
-      stateId: "",
-      cityId: "",
-      zipCode: "",
-      bankName: "",
-      accountType: "checking",
-      agency: "",
-      account: "",
-      pixKey: "",
-      emergencyName: "",
-      emergencyRelationship: "",
-      emergencyPhone: "",
-      salary: "",
-    },
-  })
-
-  /**
-   * Função para lidar com o envio do formulário
-   * @param values Valores do formulário
-   */
+  // Função para lidar com o envio do formulário
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsLoading(true)
@@ -297,8 +411,6 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
         full_name: values.fullName,
         email: values.email,
         phone: values.phone,
-        position: values.position,
-        department: values.department,
         status: "active",
         contract_type: values.contractType,
         hire_date: values.hireDate,
@@ -339,6 +451,57 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
 
       if (error) {
         throw new Error(error.message)
+      }
+
+      // Insere os vínculos com equipe, subequipe e cargo
+      const promises = []
+      
+      // Vínculo com cargo (obrigatório)
+      const employeeRoleData = {
+        employee_id: data.id,
+        role_id: values.roleId,
+        company_id: companyId,
+        is_primary: true
+      }
+      
+      promises.push(
+        supabase.from("employee_roles").insert(employeeRoleData)
+      )
+      
+      // Vínculo com equipe (se selecionada)
+      if (values.teamId) {
+        const teamMemberData = {
+          employee_id: data.id,
+          team_id: values.teamId,
+          company_id: companyId
+        }
+        
+        promises.push(
+          supabase.from("team_members").insert(teamMemberData)
+        )
+      }
+      
+      // Vínculo com subequipe (se selecionada)
+      if (values.subteamId) {
+        const subteamMemberData = {
+          employee_id: data.id,
+          subteam_id: values.subteamId,
+          company_id: companyId
+        }
+        
+        promises.push(
+          supabase.from("subteam_members").insert(subteamMemberData)
+        )
+      }
+      
+      // Executa todas as inserções em paralelo
+      const results = await Promise.allSettled(promises)
+      
+      // Verifica se alguma inserção falhou
+      const failed = results.filter(r => r.status === 'rejected')
+      if (failed.length > 0) {
+        console.error("Alguns relacionamentos não puderam ser criados:", failed)
+        // Continua mesmo com erros nos relacionamentos, mas loga o erro
       }
 
       // Insere o endereço do funcionário na nova tabela usando server action
@@ -627,33 +790,38 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
-                      name="position"
+                      name="roleId"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Cargo</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Analista de RH" {...field} />
-                          </FormControl>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione um cargo" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {loadingRoles ? (
+                                <SelectItem value="loading" disabled>
+                                  Carregando cargos...
+                                </SelectItem>
+                              ) : roles.length === 0 ? (
+                                <SelectItem value="no-roles" disabled>
+                                  Nenhum cargo disponível
+                                </SelectItem>
+                              ) : (
+                                roles.map(role => (
+                                  <SelectItem key={role.id} value={role.id}>
+                                    {role.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="department"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Departamento</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Recursos Humanos" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="contractType"
@@ -675,20 +843,100 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
                         </FormItem>
                       )}
                     />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <FormField
                       control={form.control}
-                      name="hireDate"
+                      name="teamId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Data de Admissão</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
+                          <FormLabel>Equipe</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || ''}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione uma equipe (opcional)" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {loadingTeams ? (
+                                <SelectItem value="loading" disabled>
+                                  Carregando equipes...
+                                </SelectItem>
+                              ) : teams.length === 0 ? (
+                                <SelectItem value="no-teams" disabled>
+                                  Nenhuma equipe disponível
+                                </SelectItem>
+                              ) : (
+                                teams.map(team => (
+                                  <SelectItem key={team.id} value={team.id}>
+                                    {team.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="subteamId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Subequipe</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            value={field.value || ''} 
+                            disabled={!form.watch("teamId") || filteredSubteams.length === 0}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione uma subequipe (opcional)" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {loadingSubteams ? (
+                                <SelectItem value="loading" disabled>
+                                  Carregando subequipes...
+                                </SelectItem>
+                              ) : !form.watch("teamId") ? (
+                                <SelectItem value="no-team" disabled>
+                                  Selecione uma equipe primeiro
+                                </SelectItem>
+                              ) : filteredSubteams.length === 0 ? (
+                                <SelectItem value="no-subteams" disabled>
+                                  Nenhuma subequipe disponível para esta equipe
+                                </SelectItem>
+                              ) : (
+                                filteredSubteams.map(subteam => (
+                                  <SelectItem key={subteam.id} value={subteam.id}>
+                                    {subteam.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="hireDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data de Admissão</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   {form.watch("contractType") === ContractType.CLT && (
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
