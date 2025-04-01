@@ -21,29 +21,29 @@ export class roleService {
       const supabase = await createClient()
       
       const { data, error } = await supabase
-        .from("roles")
-        .select(`
-          *,
+      .from("roles")
+      .select(`
+        *,
           team:team_id(
             id,
             name
-          )
-        `)
-        .eq("company_id", companyId)
+        )
+      `)
+      .eq("company_id", companyId)
         .order("title", { ascending: true })
-      
+
       if (error) {
         console.error("Erro na consulta:", error)
         throw error
-      }
-      
+    }
+
       return data as unknown as RoleWithTeam[]
     } catch (error) {
       console.error("Erro ao buscar cargos:", error)
       throw new Error(`Não foi possível buscar os cargos: ${JSON.stringify(error)}`)
     }
   }
-  
+
   /**
    * Obtém um cargo específico com detalhes
    * @param roleId ID do cargo
@@ -59,80 +59,80 @@ export class roleService {
       
       // Busca informações básicas do cargo
       const { data: role, error } = await supabase
-        .from("roles")
-        .select(`
-          *,
+      .from("roles")
+      .select(`
+        *,
           team:team_id(
             id,
             name
-          )
-        `)
-        .eq("id", roleId)
-        .single()
-      
+        )
+      `)
+      .eq("id", roleId)
+      .single()
+
       if (error) {
         console.error("Erro na consulta:", error)
         throw error
-      }
-      
-      // Busca os cursos do cargo
+    }
+
+    // Busca os cursos do cargo
       const { data: courses, error: coursesError } = await supabase
-        .from("role_courses")
-        .select("*")
-        .eq("role_id", roleId)
-      
-      if (coursesError) {
+      .from("role_courses")
+      .select("*")
+      .eq("role_id", roleId)
+
+    if (coursesError) {
         console.error("Erro ao buscar cursos:", coursesError)
-      }
-      
-      // Busca os cursos complementares do cargo
+    }
+
+    // Busca os cursos complementares do cargo
       const { data: complementaryCourses, error: complementaryCoursesError } = await supabase
-        .from("role_complementary_courses")
-        .select("*")
-        .eq("role_id", roleId)
-      
-      if (complementaryCoursesError) {
+      .from("role_complementary_courses")
+      .select("*")
+      .eq("role_id", roleId)
+
+    if (complementaryCoursesError) {
         console.error("Erro ao buscar cursos complementares:", complementaryCoursesError)
-      }
-      
-      // Busca as habilidades técnicas do cargo
+    }
+
+    // Busca as habilidades técnicas do cargo
       const { data: technicalSkills, error: technicalSkillsError } = await supabase
-        .from("role_technical_skills")
-        .select("*")
-        .eq("role_id", roleId)
-      
-      if (technicalSkillsError) {
+      .from("role_technical_skills")
+      .select("*")
+      .eq("role_id", roleId)
+
+    if (technicalSkillsError) {
         console.error("Erro ao buscar habilidades técnicas:", technicalSkillsError)
-      }
-      
-      // Busca as habilidades comportamentais do cargo
+    }
+
+    // Busca as habilidades comportamentais do cargo
       const { data: behavioralSkills, error: behavioralSkillsError } = await supabase
-        .from("role_behavioral_skills")
-        .select("*")
-        .eq("role_id", roleId)
-      
-      if (behavioralSkillsError) {
+      .from("role_behavioral_skills")
+      .select("*")
+      .eq("role_id", roleId)
+
+    if (behavioralSkillsError) {
         console.error("Erro ao buscar habilidades comportamentais:", behavioralSkillsError)
-      }
-      
-      // Busca os idiomas do cargo
+    }
+
+    // Busca os idiomas do cargo
       const { data: languages, error: languagesError } = await supabase
-        .from("role_languages")
-        .select("*")
-        .eq("role_id", roleId)
-      
-      if (languagesError) {
+      .from("role_languages")
+      .select("*")
+      .eq("role_id", roleId)
+
+    if (languagesError) {
         console.error("Erro ao buscar idiomas:", languagesError)
-      }
-      
+    }
+
       // Conta funcionários atuais neste cargo
       const { count, error: countError } = await supabase
         .from("employee_roles")
-        .select("*", { count: "exact", head: true })
-        .eq("role_id", roleId)
-        .eq("is_current", true)
-      
-      if (countError) {
+      .select("*", { count: "exact", head: true })
+      .eq("role_id", roleId)
+      .eq("is_current", true)
+
+    if (countError) {
         console.error("Erro ao contar funcionários:", countError)
       }
       
@@ -221,11 +221,11 @@ export class roleService {
       const supabase = await createClient()
       
       const { data, error } = await supabase
-        .from("roles")
+      .from("roles")
         .insert([role])
-        .select()
-        .single()
-      
+      .select()
+      .single()
+
       if (error) {
         console.error("Erro ao criar cargo:", error)
         throw error
@@ -235,9 +235,9 @@ export class roleService {
     } catch (error) {
       console.error("Erro ao criar cargo:", error)
       throw new Error(`Não foi possível criar o cargo: ${JSON.stringify(error)}`)
+      }
     }
-  }
-  
+
   /**
    * Atualiza um cargo existente
    * @param id ID do cargo
@@ -254,7 +254,7 @@ export class roleService {
         .eq("id", id)
         .select()
         .single()
-      
+
       if (error) {
         console.error("Erro ao atualizar cargo:", error)
         throw error
@@ -264,9 +264,9 @@ export class roleService {
     } catch (error) {
       console.error("Erro ao atualizar cargo:", error)
       throw new Error(`Não foi possível atualizar o cargo: ${JSON.stringify(error)}`)
+      }
     }
-  }
-  
+
   /**
    * Remove um cargo
    * @param id ID do cargo
@@ -281,15 +281,15 @@ export class roleService {
         .from("employee_roles")
         .select("*", { count: "exact", head: true })
         .eq("role_id", id)
-      
+
       if (countError) {
         throw countError
       }
       
-      if (count > 0) {
+      if ((count ?? 0) > 0) {
         throw new Error("Não é possível excluir um cargo que possui funcionários associados")
-      }
-      
+    }
+
       // Exclui o cargo
       const { error } = await supabase
         .from("roles")
@@ -306,7 +306,7 @@ export class roleService {
       throw new Error(`Não foi possível excluir o cargo: ${JSON.stringify(error)}`)
     }
   }
-  
+
   /**
    * Adiciona um curso ao cargo
    * @param course Dados do curso
@@ -319,9 +319,9 @@ export class roleService {
       const { data, error } = await supabase
         .from("role_courses")
         .insert([course])
-        .select()
-        .single()
-      
+      .select()
+      .single()
+
       if (error) {
         console.error("Erro ao adicionar curso:", error)
         throw error
@@ -332,8 +332,8 @@ export class roleService {
       console.error("Erro ao adicionar curso:", error)
       throw new Error(`Não foi possível adicionar o curso: ${JSON.stringify(error)}`)
     }
-  }
-  
+    }
+
   /**
    * Remove um curso do cargo
    * @param id ID do curso
@@ -345,9 +345,9 @@ export class roleService {
       
       const { error } = await supabase
         .from("role_courses")
-        .delete()
+      .delete()
         .eq("id", id)
-      
+
       if (error) {
         throw error
       }
@@ -357,8 +357,8 @@ export class roleService {
       console.error("Erro ao remover curso:", error)
       throw new Error(`Não foi possível remover o curso: ${JSON.stringify(error)}`)
     }
-  }
-  
+    }
+
   /**
    * Adiciona um curso complementar ao cargo
    * @param course Dados do curso complementar
@@ -373,7 +373,7 @@ export class roleService {
         .insert([course])
         .select()
         .single()
-      
+
       if (error) {
         console.error("Erro ao adicionar curso complementar:", error)
         throw error
@@ -384,8 +384,8 @@ export class roleService {
       console.error("Erro ao adicionar curso complementar:", error)
       throw new Error(`Não foi possível adicionar o curso complementar: ${JSON.stringify(error)}`)
     }
-  }
-  
+    }
+
   /**
    * Remove um curso complementar do cargo
    * @param id ID do curso complementar
@@ -397,9 +397,9 @@ export class roleService {
       
       const { error } = await supabase
         .from("role_complementary_courses")
-        .delete()
+      .delete()
         .eq("id", id)
-      
+
       if (error) {
         throw error
       }
@@ -409,8 +409,8 @@ export class roleService {
       console.error("Erro ao remover curso complementar:", error)
       throw new Error(`Não foi possível remover o curso complementar: ${JSON.stringify(error)}`)
     }
-  }
-  
+    }
+
   /**
    * Adiciona uma habilidade técnica ao cargo
    * @param skill Dados da habilidade técnica
@@ -425,7 +425,7 @@ export class roleService {
         .insert([skill])
         .select()
         .single()
-      
+
       if (error) {
         console.error("Erro ao adicionar habilidade técnica:", error)
         throw error
@@ -435,9 +435,9 @@ export class roleService {
     } catch (error) {
       console.error("Erro ao adicionar habilidade técnica:", error)
       throw new Error(`Não foi possível adicionar a habilidade técnica: ${JSON.stringify(error)}`)
-    }
+      }
   }
-  
+
   /**
    * Remove uma habilidade técnica do cargo
    * @param id ID da habilidade técnica
@@ -451,12 +451,12 @@ export class roleService {
         .from("role_technical_skills")
         .delete()
         .eq("id", id)
-      
-      if (error) {
+
+    if (error) {
         throw error
-      }
-      
-      return true
+    }
+
+    return true
     } catch (error) {
       console.error("Erro ao remover habilidade técnica:", error)
       throw new Error(`Não foi possível remover a habilidade técnica: ${JSON.stringify(error)}`)
@@ -477,7 +477,7 @@ export class roleService {
         .insert([skill])
         .select()
         .single()
-      
+
       if (error) {
         console.error("Erro ao adicionar habilidade comportamental:", error)
         throw error
@@ -487,9 +487,9 @@ export class roleService {
     } catch (error) {
       console.error("Erro ao adicionar habilidade comportamental:", error)
       throw new Error(`Não foi possível adicionar a habilidade comportamental: ${JSON.stringify(error)}`)
+      }
     }
-  }
-  
+
   /**
    * Remove uma habilidade comportamental do cargo
    * @param id ID da habilidade comportamental
@@ -503,12 +503,12 @@ export class roleService {
         .from("role_behavioral_skills")
         .delete()
         .eq("id", id)
-      
-      if (error) {
+
+    if (error) {
         throw error
-      }
-      
-      return true
+    }
+
+    return true
     } catch (error) {
       console.error("Erro ao remover habilidade comportamental:", error)
       throw new Error(`Não foi possível remover a habilidade comportamental: ${JSON.stringify(error)}`)
@@ -529,7 +529,7 @@ export class roleService {
         .insert([language])
         .select()
         .single()
-      
+
       if (error) {
         console.error("Erro ao adicionar idioma:", error)
         throw error
@@ -541,7 +541,7 @@ export class roleService {
       throw new Error(`Não foi possível adicionar o idioma: ${JSON.stringify(error)}`)
     }
   }
-  
+
   /**
    * Remove um idioma do cargo
    * @param id ID do idioma
@@ -555,12 +555,12 @@ export class roleService {
         .from("role_languages")
         .delete()
         .eq("id", id)
-      
-      if (error) {
+
+    if (error) {
         throw error
-      }
-      
-      return true
+    }
+
+    return true
     } catch (error) {
       console.error("Erro ao remover idioma:", error)
       throw new Error(`Não foi possível remover o idioma: ${JSON.stringify(error)}`)

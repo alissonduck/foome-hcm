@@ -227,12 +227,12 @@ export async function getEmployeeRoleHistory(employeeId: string): Promise<RoleEm
       `)
       .eq("employee_id", employeeId)
       .order("start_date", { ascending: false })
-      
+
     if (error) {
       console.error("Erro ao buscar histórico de cargos:", error)
       throw new Error("Não foi possível buscar o histórico de cargos")
     }
-    
+
     return data as unknown as RoleEmployeeWithDetails[]
   } catch (error) {
     console.error("Erro ao buscar histórico de cargos:", error)
@@ -285,12 +285,12 @@ export async function getRoleEmployees(roleId: string): Promise<RoleEmployeeWith
       .eq("role_id", roleId)
       .eq("is_current", true)
       .order("start_date", { ascending: false })
-      
+
     if (error) {
       console.error("Erro ao buscar funcionários do cargo:", error)
       throw new Error("Não foi possível buscar os funcionários do cargo")
     }
-    
+
     return data as unknown as RoleEmployeeWithDetails[]
   } catch (error) {
     console.error("Erro ao buscar funcionários do cargo:", error)
@@ -743,7 +743,7 @@ export async function deleteRole(roleId: string): Promise<boolean> {
       .select("company_id")
       .eq("id", roleId)
       .single()
-      
+    
     if (roleError || !role) {
       console.error("Erro ao verificar cargo:", roleError)
       throw new Error("Cargo não encontrado")
@@ -759,12 +759,12 @@ export async function deleteRole(roleId: string): Promise<boolean> {
       .select("*", { count: "exact", head: true })
       .eq("role_id", roleId)
       .eq("is_current", true)
-
+    
     if (countError) {
       console.error("Erro ao verificar funcionários do cargo:", countError)
       throw new Error("Não foi possível verificar os funcionários do cargo")
     }
-
+    
     if (count && count > 0) {
       throw new Error("Não é possível excluir um cargo que possui funcionários ativos")
     }
@@ -1141,7 +1141,7 @@ export async function deleteRoleById(id: string): Promise<ServerResponse> {
         error: "Não é possível excluir um cargo com funcionários ativos"
       })
     }
-
+    
     // Exclui os registros relacionados (usando uma transação manual)
     
     // 1. Exclui cursos
@@ -1204,7 +1204,7 @@ export async function deleteRoleById(id: string): Promise<ServerResponse> {
     if (deleteRoleEmployeesError) {
       console.error("Erro ao excluir histórico de cargos:", deleteRoleEmployeesError)
     }
-
+    
     // Finalmente, exclui o cargo
     const { error } = await supabase
       .from("roles")
@@ -1221,7 +1221,7 @@ export async function deleteRoleById(id: string): Promise<ServerResponse> {
 
     // Revalidar o caminho para atualizar os dados
     revalidatePath("/dashboard/roles")
-
+    
     return constructServerResponse({
       success: true,
       message: "Cargo excluído com sucesso"
@@ -1269,7 +1269,7 @@ export async function assignRoleToEmployeeFromForm(formData: FormData): Promise<
         error: "Cargo e funcionário são obrigatórios"
       })
     }
-
+    
     const supabase = await createClient()
     
     // Verifica se o funcionário pertence à empresa
@@ -1397,7 +1397,7 @@ export async function endRoleAssignmentById(id: string): Promise<ServerResponse>
         error: "Apenas administradores podem finalizar atribuições de cargos"
       })
     }
-
+    
     const supabase = await createClient()
     
     // Busca a atribuição de cargo para verificar permissões
@@ -1433,7 +1433,7 @@ export async function endRoleAssignmentById(id: string): Promise<ServerResponse>
       .eq("id", id)
       .select()
       .single()
-
+    
     if (error) {
       console.error("Erro ao finalizar atribuição:", error)
       return constructServerResponse({
@@ -1445,7 +1445,7 @@ export async function endRoleAssignmentById(id: string): Promise<ServerResponse>
     // Revalidar os caminhos para atualizar os dados
     revalidatePath(`/dashboard/employees/${roleEmployee.employee_id}`)
     revalidatePath(`/dashboard/roles/${roleEmployee.role_id}`)
-
+    
     return constructServerResponse({
       success: true,
       data,
