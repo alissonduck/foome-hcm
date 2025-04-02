@@ -347,46 +347,70 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
     });
     
     if (open) {
-      // Simplificar temporariamente para diagnóstico
+      // Verificação se os dados do funcionário estão completos
+      if (!employee || !employee.id) {
+        console.error("Erro: Dados do funcionário incompletos ou inválidos", {
+          employee: employee ? "objeto existe" : "objeto não existe",
+          employeeId: employee?.id || "undefined/null"
+        });
+        
+        toast({
+          variant: "destructive",
+          title: "Erro ao abrir formulário",
+          description: "Dados do funcionário inválidos ou incompletos. Feche e tente novamente."
+        });
+        
+        // Fecha o diálogo para evitar erros adicionais
+        setTimeout(() => onOpenChange(false), 1500);
+        return;
+      }
+      
+      // Se chegou aqui, temos um funcionário válido
       console.log("Diálogo está aberto, tentando carregar dados...");
       
       try {
-        // Tenta carregar os dados básicos do formulário
-        if (employee) {
-          console.log("Carregando dados do funcionário para o formulário");
-          form.reset({
-            fullName: employee.full_name || "",
-            email: employee.email || "",
-            phone: employee.phone || "",
-            status: employee.status || "",
-            teamId: "none",
-            subteamId: "none",
-            roleId: "",
-          });
-        } else {
-          console.error("Objeto employee não está disponível");
-        }
+        // Carrega os dados básicos do formulário
+        console.log("Carregando dados do funcionário para o formulário");
+        form.reset({
+          fullName: employee.full_name || "",
+          email: employee.email || "",
+          phone: employee.phone || "",
+          status: employee.status || "",
+          teamId: "none",
+          subteamId: "none",
+          roleId: "",
+        });
         
-        // Carrega equipes e cargos mesmo sem todas as validações
+        // Carrega dados relacionados
         if (companyId) {
           console.log("Tentando carregar dados relacionados com companyId:", companyId);
           loadTeams();
           loadSubteams();
           loadRoles();
           
-          if (employee && employee.id) {
+          if (employee.id) {
             console.log("Tentando carregar relacionamentos para funcionário ID:", employee.id);
             const empId = String(employee.id);
             loadEmployeeRelations(empId);
           }
         } else {
           console.error("CompanyId não está disponível para carregar dados relacionados");
+          toast({
+            variant: "destructive",
+            title: "Erro ao carregar dados",
+            description: "ID da empresa não encontrado. Feche e tente novamente."
+          });
         }
       } catch (error: any) {
         console.error("Erro ao processar abertura do diálogo:", error.message || error);
+        toast({
+          variant: "destructive",
+          title: "Erro ao carregar dados",
+          description: "Ocorreu um erro inesperado. Feche e tente novamente."
+        });
       }
     }
-  }, [open, employee, companyId, form, loadTeams, loadSubteams, loadRoles, loadEmployeeRelations]);
+  }, [open, employee, companyId, form, loadTeams, loadSubteams, loadRoles, loadEmployeeRelations, toast, onOpenChange]);
 
   /**
    * Função para lidar com o envio do formulário

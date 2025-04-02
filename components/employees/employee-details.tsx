@@ -78,6 +78,16 @@ export default function EmployeeDetails({
   const { toast } = useToast()
   const { deleteEmployee, isDeleting } = useDeleteEmployee()
 
+  // Efeito para verificar os dados do employee no componente
+  useEffect(() => {
+    console.log("EmployeeDetails montado, verificando dados:", {
+      employee: employee ? "objeto existe" : "undefined/null",
+      employeeId: employee?.id,
+      employeeKeys: employee ? Object.keys(employee) : [],
+      companyId
+    });
+  }, [employee, companyId]);
+
   // Verifica se o usuário atual é o próprio funcionário
   const isSelf = currentUserId === employee.user_id
 
@@ -134,7 +144,38 @@ export default function EmployeeDetails({
 
   // Função para abrir o diálogo de edição
   const handleOpenEditDialog = () => {
-    console.log("DEBUG: Abrindo diálogo de edição", { employeeId: employee?.id, companyId });
+    // Verificar se temos os dados necessários
+    console.log("Verificando dados do funcionário para edição:", {
+      employeeObj: employee,
+      employeeId: employee?.id,
+      companyId
+    });
+    
+    if (!employee || !employee.id) {
+      console.error("Erro: Dados do funcionário incompletos ou inválidos para edição");
+      toast({
+        variant: "destructive",
+        title: "Erro ao abrir formulário",
+        description: "Dados do funcionário inválidos ou incompletos. Tente novamente."
+      });
+      return;
+    }
+    
+    if (!companyId) {
+      console.error("Erro: ID da empresa não disponível para edição");
+      toast({
+        variant: "destructive",
+        title: "Erro ao abrir formulário",
+        description: "ID da empresa não encontrado. Tente novamente."
+      });
+      return;
+    }
+    
+    // Se chegou aqui, temos os dados necessários para abrir o diálogo
+    console.log("Abrindo diálogo de edição com dados válidos:", { 
+      employeeId: employee.id, 
+      companyId 
+    });
     setIsEditDialogOpen(true);
   }
 

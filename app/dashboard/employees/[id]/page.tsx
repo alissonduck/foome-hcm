@@ -38,7 +38,31 @@ export default async function EmployeeDetailsPage(props: { params: Promise<{ id:
 
   // Busca os dados do funcionário selecionado usando Server Action
   try {
-    const employee = await getEmployee(params.id)
+    const response = await getEmployee(params.id)
+    
+    // Verifica se a resposta foi bem-sucedida e extrai os dados do funcionário
+    if (!response.success || !response.data) {
+      console.error("Erro ao buscar funcionário: Resposta inválida", response);
+      notFound()
+    }
+    
+    // Extrai o funcionário da resposta
+    const employee = response.data
+    
+    // Verificar se o employee foi carregado corretamente e contém ID
+    if (!employee || !employee.id) {
+      console.error("Erro ao buscar funcionário: Dados incompletos", { 
+        employeeId: params.id,
+        employeeData: employee 
+      });
+      notFound()
+    }
+
+    // Log de validação para confirmar que employee contém ID
+    console.log("Funcionário carregado com sucesso:", { 
+      id: employee.id,
+      fullName: employee.full_name
+    });
 
     // Verifica se o usuário tem permissão para acessar os detalhes
     // (apenas administradores ou o próprio funcionário)
