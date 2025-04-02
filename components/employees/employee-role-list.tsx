@@ -40,7 +40,7 @@ export function EmployeeRoleList({
         <TableBody>
           {roles.map((role) => (
             <TableRow key={role.id}>
-              <TableCell className="font-medium">{role.role.name}</TableCell>
+              <TableCell className="font-medium">{role.role?.name || "Cargo não definido"}</TableCell>
               <TableCell>
                 {format(new Date(role.start_date), "PPP", { locale: ptBR })}
               </TableCell>

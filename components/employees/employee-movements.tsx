@@ -213,7 +213,7 @@ export function MovimentacoesClient({
         <div className="rounded-lg border p-4">
           <h3 className="font-semibold">Cargo Atual</h3>
           <p className="text-sm text-muted-foreground">
-            {currentRole.role.name} - Desde{" "}
+            {currentRole.role?.name || "Cargo não definido"} - Desde{" "}
             {new Date(currentRole.start_date).toLocaleDateString("pt-BR")}
           </p>
         </div>
