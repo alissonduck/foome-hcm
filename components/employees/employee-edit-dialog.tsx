@@ -60,7 +60,6 @@ interface EmployeeRole {
   id: string
   role_id: string
   employee_id: string
-  is_primary: boolean
 }
 
 /**
@@ -197,7 +196,6 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
         .select('*')
         .eq('employee_id', employeeId)
         .eq('company_id', companyId)
-        .eq('is_primary', true)
         .maybeSingle()
       
       if (roleError) throw roleError
@@ -457,7 +455,6 @@ export default function EmployeeEditDialog({ employee, open, onOpenChange, compa
               employee_id: employee.id,
               role_id: values.roleId,
               company_id: companyId,
-              is_primary: true,
               start_date: new Date().toISOString().split('T')[0] // Usando data atual como start_date
             })
         )

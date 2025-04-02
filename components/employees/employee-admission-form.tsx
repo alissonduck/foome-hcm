@@ -461,7 +461,6 @@ export default function EmployeeAdmissionForm({ companyId, userId }: EmployeeAdm
         employee_id: data.id,
         role_id: values.roleId,
         company_id: companyId,
-        is_primary: true,
         start_date: values.hireDate
       }
       

@@ -38,6 +38,7 @@ Este software será comercializado com médias e grandes empresas, então atente
 - Utilize mensagens de sucesso e erro consistentes com toast. Sempre utilize o mesmo componente de toast para sucesso e erro.
 - Garanta a entrada e saída de dados adequada em cada funcionalidade ou endpoint, conforme as tabelas do banco de dados.
 - Sempre corrija os erros de lint ao editar cada um dos arquivos. Garanta que o código seja executado sem erros.
+- Obritatoriamente não escreva código e chamadas SQL diretamente em arquivos de componentes (client components) e páginas (pages). Escreva código e chamadas QL diretamente nos "services", que são os arquivos que devem comandar as regras de negócio do projeto.
 </DevelopmentRules>
 
 <Folders>
