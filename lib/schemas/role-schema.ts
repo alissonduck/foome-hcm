@@ -21,29 +21,29 @@ export const roleSchema = z.object({
   title: z.string().min(1, "O título é obrigatório"),
   cbo_name: z.string().optional().nullable(),
   cbo_number: z.string().optional().nullable(),
-  contract_type: z.enum(CONTRACT_TYPES as [string, ...string[]]),
+  contract_type: z.enum(CONTRACT_TYPES as unknown as [string, ...string[]]),
   active: z.boolean().default(true),
   team_id: z.string().uuid().optional().nullable(),
   description: z.string().optional().nullable(),
   salary_periodicity: z
-    .enum(SALARY_PERIODICITIES as [string, ...string[]])
+    .enum(SALARY_PERIODICITIES as unknown as [string, ...string[]])
     .optional()
     .nullable(),
   salary: z.number().positive().optional().nullable(),
   cnh: z
-    .enum(CNH_TYPES as [string, ...string[]])
+    .enum(CNH_TYPES as unknown as [string, ...string[]])
     .optional()
     .nullable(),
   work_model: z
-    .enum(WORK_MODELS as [string, ...string[]])
+    .enum(WORK_MODELS as unknown as [string, ...string[]])
     .optional()
     .nullable(),
   level: z
-    .enum(ROLE_LEVELS as [string, ...string[]])
+    .enum(ROLE_LEVELS as unknown as [string, ...string[]])
     .optional()
     .nullable(),
   seniority_level: z
-    .enum(SENIORITY_LEVELS as [string, ...string[]])
+    .enum(SENIORITY_LEVELS as unknown as [string, ...string[]])
     .optional()
     .nullable(),
   seniority_scale: z.number().min(1).max(10).optional().nullable(),
@@ -51,11 +51,11 @@ export const roleSchema = z.object({
   desired_requirements: z.string().optional().nullable(),
   deliveries_results: z.string().optional().nullable(),
   education_level: z
-    .enum(EDUCATION_LEVELS as [string, ...string[]])
+    .enum(EDUCATION_LEVELS as unknown as [string, ...string[]])
     .optional()
     .nullable(),
   education_status: z
-    .enum(EDUCATION_STATUSES as [string, ...string[]])
+    .enum(EDUCATION_STATUSES as unknown as [string, ...string[]])
     .optional()
     .nullable(),
 })
@@ -78,27 +78,27 @@ export const roleTechnicalSkillSchema = z.object({
   role_id: z.string().uuid(),
   name: z.string().min(1, "O nome da habilidade é obrigatório"),
   level: z
-    .enum(SKILL_LEVELS as [string, ...string[]])
+    .enum(SKILL_LEVELS as unknown as [string, ...string[]])
     .optional()
     .nullable(),
 })
 
-// Schema para validação de habilidade comportamental
-export const roleBehavioralSkillSchema = z.object({
-  role_id: z.string().uuid(),
+// Behavioral skill schema
+export const behavioralSkillSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1, "O nome da habilidade é obrigatório"),
   level: z
-    .enum(SKILL_LEVELS as [string, ...string[]])
+    .enum(SKILL_LEVELS as unknown as [string, ...string[]])
     .optional()
     .nullable(),
 })
 
-// Schema para validação de idioma
-export const roleLanguageSchema = z.object({
-  role_id: z.string().uuid(),
+// Language schema
+export const languageSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1, "O nome do idioma é obrigatório"),
   level: z
-    .enum(SKILL_LEVELS as [string, ...string[]])
+    .enum(SKILL_LEVELS as unknown as [string, ...string[]])
     .optional()
     .nullable(),
   is_required: z.boolean().default(false),
@@ -113,62 +113,78 @@ export const roleEmployeeSchema = z.object({
   is_current: z.boolean().default(true),
 })
 
+// Course schema para formulário
+export const courseSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, "O nome do curso é obrigatório"),
+  is_required: z.boolean().default(false),
+})
+
+// Complementary course schema para formulário
+export const complementaryCourseSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, "O nome do curso é obrigatório"),
+})
+
+// Technical skill schema para formulário
+export const technicalSkillSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, "O nome da habilidade é obrigatório"),
+  level: z
+    .enum(SKILL_LEVELS as unknown as [string, ...string[]])
+    .optional()
+    .nullable(),
+})
+
 // Schema para formulário de cargo completo
-export const roleFormSchema = roleSchema.extend({
-  courses: z
-    .array(
-      z.object({
-        id: z.string().optional(),
-        name: z.string(),
-        is_required: z.boolean().default(false),
-      }),
-    )
-    .default([]),
-  complementary_courses: z
-    .array(
-      z.object({
-        id: z.string().optional(),
-        name: z.string(),
-      }),
-    )
-    .default([]),
-  technical_skills: z
-    .array(
-      z.object({
-        id: z.string().optional(),
-        name: z.string(),
-        level: z
-          .enum(SKILL_LEVELS as [string, ...string[]])
-          .optional()
-          .nullable(),
-      }),
-    )
-    .default([]),
-  behavioral_skills: z
-    .array(
-      z.object({
-        id: z.string().optional(),
-        name: z.string(),
-        level: z
-          .enum(SKILL_LEVELS as [string, ...string[]])
-          .optional()
-          .nullable(),
-      }),
-    )
-    .default([]),
-  languages: z
-    .array(
-      z.object({
-        id: z.string().optional(),
-        name: z.string(),
-        level: z
-          .enum(SKILL_LEVELS as [string, ...string[]])
-          .optional()
-          .nullable(),
-        is_required: z.boolean().default(false),
-      }),
-    )
-    .default([]),
+export const roleFormSchema = z.object({
+  company_id: z.string().uuid(),
+  title: z.string().min(3, "O título deve ter no mínimo 3 caracteres"),
+  contract_type: z.enum(CONTRACT_TYPES as unknown as [string, ...string[]]),
+  courses: z.array(courseSchema).optional().default([]),
+  complementary_courses: z.array(complementaryCourseSchema).optional().default([]),
+  technical_skills: z.array(technicalSkillSchema).optional().default([]),
+  behavioral_skills: z.array(behavioralSkillSchema).optional().default([]),
+  languages: z.array(languageSchema).optional().default([]),
+  // Adicionar os campos do roleSchema
+  cbo_name: z.string().optional().nullable(),
+  cbo_number: z.string().optional().nullable(),
+  active: z.boolean().default(true),
+  team_id: z.string().uuid().optional().nullable(),
+  description: z.string().optional().nullable(),
+  salary_periodicity: z
+    .enum(SALARY_PERIODICITIES as unknown as [string, ...string[]])
+    .optional()
+    .nullable(),
+  salary: z.number().positive().optional().nullable(),
+  cnh: z
+    .enum(CNH_TYPES as unknown as [string, ...string[]])
+    .optional()
+    .nullable(),
+  work_model: z
+    .enum(WORK_MODELS as unknown as [string, ...string[]])
+    .optional()
+    .nullable(),
+  level: z
+    .enum(ROLE_LEVELS as unknown as [string, ...string[]])
+    .optional()
+    .nullable(),
+  seniority_level: z
+    .enum(SENIORITY_LEVELS as unknown as [string, ...string[]])
+    .optional()
+    .nullable(),
+  seniority_scale: z.number().min(1).max(10).optional().nullable(),
+  required_requirements: z.string().optional().nullable(),
+  desired_requirements: z.string().optional().nullable(),
+  deliveries_results: z.string().optional().nullable(),
+  education_level: z
+    .enum(EDUCATION_LEVELS as unknown as [string, ...string[]])
+    .optional()
+    .nullable(),
+  education_status: z
+    .enum(EDUCATION_STATUSES as unknown as [string, ...string[]])
+    .optional()
+    .nullable(),
 })
 
 // Tipo inferido do schema de formulário

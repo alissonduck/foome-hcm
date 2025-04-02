@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, SubmitHandler } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus, Trash2, Save } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
@@ -21,7 +21,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRoles } from "@/hooks/use-roles"
-import { useTeams } from "@/hooks/use-teams"
 import { roleFormSchema, type RoleFormValues } from "@/lib/schemas/role-schema"
 import {
   CONTRACT_TYPES,
@@ -116,7 +115,7 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
   const [newCourseRequired, setNewCourseRequired] = useState(false)
 
   const form = useForm<RoleFormValues>({
-    resolver: zodResolver(roleFormSchema),
+    resolver: zodResolver(roleFormSchema) as any,
     defaultValues: initialData || {
       company_id: companyId,
       title: "",
@@ -165,7 +164,7 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
     }
   }, [initialData])
 
-  const onSubmit = async (data: RoleFormValues) => {
+  const onSubmit: SubmitHandler<RoleFormValues> = async (data) => {
     try {
       // Criar objeto com todos os dados para enviar ao servidor
       const formData = {
@@ -229,7 +228,7 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
           throw new Error(errorData.message || 'Erro ao criar cargo');
         }
         
-        const data = await response.json();
+        await response.json();
         
         // Informamos ao React Query que os dados mudaram
         queryClient.invalidateQueries({ queryKey: ["roles", formData.company_id] });
@@ -1066,4 +1065,3 @@ export function RoleForm({ companyId, initialData, isEditing = false }: RoleForm
     </Form>
   )
 }
-

@@ -3,7 +3,7 @@
  * Fornece métodos para interagir com cargos
  */
 import { createClient } from "@/lib/supabase/server"
-import { Role, RoleBehavioralSkill, RoleComplementaryCourse, RoleCourse, RoleEmployeeWithDetails, RoleInsert, RoleLanguage, RoleTechnicalSkill, RoleUpdate, RoleWithDetails, RoleWithTeam } from "@/lib/types/roles"
+import { Role, RoleBehavioralSkill, RoleComplementaryCourse, RoleCourse, RoleEmployeeWithDetails, RoleInsert, RoleLanguage, RoleTechnicalSkill, RoleUpdate, RoleWithDetails, RoleWithTeam, RoleEmployee } from "@/lib/types/roles"
 
 export class roleService {
   /**
@@ -833,6 +833,133 @@ export class roleService {
     } catch (error) {
       console.error("Erro ao remover idioma:", error)
       throw new Error(`Não foi possível remover o idioma: ${JSON.stringify(error)}`)
+    }
+  }
+
+  /**
+   * Ativa ou desativa um cargo
+   * @param roleId ID do cargo
+   * @param active Status de ativação
+   * @returns Boolean indicando sucesso
+   */
+  static async toggleRoleActive(roleId: string, active: boolean): Promise<boolean> {
+    try {
+      if (!roleId) {
+        throw new Error("ID do cargo não fornecido")
+      }
+
+      const supabase = await createClient()
+      
+      const { error } = await supabase
+        .from("roles")
+        .update({ active })
+        .eq("id", roleId)
+      
+      if (error) throw error
+      
+      return true
+    } catch (error) {
+      console.error("Erro ao atualizar status do cargo:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Atribui um cargo a um funcionário
+   * @param data Dados da atribuição
+   * @returns Objeto com dados da atribuição
+   */
+  static async assignRoleToEmployee(data: {
+    role_id: string
+    employee_id: string
+    start_date: string
+    is_current?: boolean
+  }): Promise<RoleEmployee> {
+    try {
+      const { role_id, employee_id, start_date, is_current = true } = data
+      
+      if (!role_id || !employee_id) {
+        throw new Error("ID do cargo ou do funcionário não fornecido")
+      }
+
+      const supabase = await createClient()
+      
+      // Busca os detalhes do cargo para obter o company_id
+      const { data: role, error: roleError } = await supabase
+        .from("roles")
+        .select("company_id")
+        .eq("id", role_id)
+        .single()
+      
+      if (roleError || !role) {
+        throw new Error("Cargo não encontrado")
+      }
+      
+      // Se for o cargo atual, atualiza os cargos existentes
+      if (is_current) {
+        await supabase
+          .from("employee_roles")
+          .update({ 
+            is_current: false,
+            end_date: start_date
+          })
+          .eq("employee_id", employee_id)
+          .eq("is_current", true)
+      }
+      
+      // Cria a nova atribuição
+      const { data: newAssignment, error } = await supabase
+        .from("employee_roles")
+        .insert({
+          role_id,
+          employee_id,
+          company_id: role.company_id,
+          start_date,
+          is_current
+        })
+        .select("*")
+        .single()
+      
+      if (error) throw error
+      
+      return newAssignment
+    } catch (error) {
+      console.error("Erro ao atribuir cargo:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Finaliza uma atribuição de cargo
+   * @param roleEmployeeId ID da atribuição de cargo
+   * @param endDate Data de término
+   * @returns Objeto com dados da atribuição
+   */
+  static async endRoleAssignment(roleEmployeeId: string, endDate: string): Promise<RoleEmployee> {
+    try {
+      if (!roleEmployeeId) {
+        throw new Error("ID da atribuição não fornecido")
+      }
+
+      const supabase = await createClient()
+      
+      // Atualiza a atribuição
+      const { data: updatedAssignment, error } = await supabase
+        .from("employee_roles")
+        .update({ 
+          is_current: false,
+          end_date: endDate
+        })
+        .eq("id", roleEmployeeId)
+        .select("*")
+        .single()
+      
+      if (error) throw error
+      
+      return updatedAssignment
+    } catch (error) {
+      console.error("Erro ao finalizar atribuição de cargo:", error)
+      throw error
     }
   }
 }
