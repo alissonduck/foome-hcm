@@ -3,7 +3,7 @@
  * Define os tipos utilizados para gerenciar funcionários
  */
 
-import type { Database } from "./supabase"
+import type { Database } from "@/lib/supabase/types"
 
 // Tipos básicos para funcionários
 export type Employee = Database["public"]["Tables"]["employees"]["Row"]

@@ -1,0 +1,413 @@
+<context>
+# Visão Geral
+O Foome HCM (Human Capital Management) é uma plataforma SaaS completa para gestão de capital humano, projetada para médias e grandes empresas. Nosso produto oferece uma solução integrada que centraliza e automatiza todos os processos de RH, desde a admissão até o desenvolvimento de talentos e gestão de desempenho.
+
+O Foome HCM resolve o problema da fragmentação das ferramentas de RH, eliminando silos de informação e processos manuais que consomem tempo e recursos. A plataforma é voltada para equipes de Recursos Humanos, gestores e colaboradores, proporcionando uma experiência fluida e intuitiva para todos os usuários.
+
+O valor principal do Foome HCM está na sua capacidade de unificar dados, automatizar processos e fornecer insights estratégicos sobre capital humano, permitindo que as empresas tomem decisões baseadas em dados e foquem no que realmente importa: o desenvolvimento das pessoas.
+
+# Funcionalidades Principais
+
+## Gestão de Funcionários
+- **Cadastro e Perfil de Funcionários**: Sistema completo para registro de dados pessoais, profissionais e documentos de colaboradores.
+- **Organograma Dinâmico**: Visualização interativa da estrutura organizacional, com equipes e subequipes.
+- **Histórico de Carreira**: Registro de promoções, mudanças de cargo e equipe, e evolução salarial.
+- **Documentos e Contratos**: Repositório centralizado para armazenamento e gestão de documentos.
+
+## Admissão e Onboarding
+- **Fluxo de Admissão**: Processo guiado para contratação e registro de novos colaboradores.
+- **Onboarding Personalizado**: Criação de jornadas de integração com tarefas, materiais e prazos.
+- **Documentação Digital**: Assinatura e armazenamento digital de contratos e documentos obrigatórios.
+- **Portal de Boas-vindas**: Ambiente dedicado para novos colaboradores acessarem informações essenciais.
+
+## Gestão de Folha e Benefícios
+- **Holerites Digitais**: Geração e distribuição de holerites com acesso controlado.
+- **Gestão de Benefícios**: Administração de planos de saúde, vale-refeição, seguro de vida e outros benefícios.
+- **Gestão de Férias e Ausências**: Solicitação, aprovação e acompanhamento de férias e licenças.
+- **Reembolsos e Despesas**: Fluxo para solicitação e aprovação de reembolsos.
+
+## Desenvolvimento e Desempenho
+- **Avaliações de Desempenho**: Ciclos de avaliação configuráveis com múltiplos modelos (360°, metas, competências).
+- **Metas e OKRs**: Definição, acompanhamento e avaliação de objetivos individuais e de equipe.
+- **Feedback Contínuo**: Ferramenta para registro e acompanhamento de feedbacks em tempo real.
+- **Planos de Desenvolvimento**: Criação e monitoramento de planos de desenvolvimento individuais.
+
+## Engajamento e Cultura
+- **Pesquisas de Clima**: Criação, aplicação e análise de pesquisas de clima organizacional.
+- **Pesquisas de Satisfação**: Pulsos regulares para medição da satisfação dos colaboradores.
+- **Reconhecimento entre Pares**: Sistema para reconhecimentos públicos alinhados aos valores da empresa.
+- **Comunicação Interna**: Canais para comunicação oficial e interação entre colaboradores.
+
+## Analytics e Relatórios
+- **Dashboard Executivo**: Visão consolidada de indicadores-chave de RH.
+- **Relatórios Customizáveis**: Geração de relatórios personalizados com filtros avançados.
+- **Análise Preditiva**: Identificação de tendências e riscos relacionados a turnover e engajamento.
+- **Benchmarking**: Comparação de indicadores internos com dados do mercado.
+
+# Experiência do Usuário
+
+## Personas Principais
+1. **Gestor de RH**: Profissional responsável pela estratégia e operação de recursos humanos.
+   - Necessidades: visão holística, automação de processos, insights estratégicos, compliance.
+   - Frustração: processos manuais, informações fragmentadas, dificuldade para gerar relatórios.
+
+2. **Gestor de Equipe**: Líder responsável por uma equipe ou departamento.
+   - Necessidades: acompanhamento de desempenho, gestão de férias, onboarding de novos membros.
+   - Frustração: burocracia em processos de aprovação, falta de visibilidade sobre dados da equipe.
+
+3. **Colaborador**: Funcionário que utiliza o sistema para consultas e solicitações.
+   - Necessidades: acesso a holerites, solicitação de férias, feedback sobre desempenho.
+   - Frustração: múltiplas plataformas, processos complexos, falta de transparência.
+
+## Fluxos Principais
+1. **Admissão de Novo Colaborador**:
+   - RH cadastra informações básicas e envia convite
+   - Colaborador preenche dados pessoais e documentos
+   - RH valida informações e ativa processo de onboarding
+   - Gestor acompanha progresso e conclui integração
+
+2. **Ciclo de Avaliação de Desempenho**:
+   - RH configura e inicia ciclo de avaliação
+   - Colaboradores realizam autoavaliação
+   - Gestores e pares fornecem feedback
+   - RH e gestores analisam resultados e definem planos de ação
+
+3. **Solicitação e Aprovação de Férias**:
+   - Colaborador solicita período de férias
+   - Sistema verifica elegibilidade e conflitos
+   - Gestor recebe notificação e aprova/rejeita solicitação
+   - RH recebe notificação para processamento
+
+## Considerações de UI/UX
+- **Design Responsivo**: Experiência otimizada para desktop, tablet e mobile.
+- **Acessibilidade**: Conformidade com WCAG 2.1 AA para inclusão de todos os usuários.
+- **Onboarding Guiado**: Tutoriais interativos para facilitar a adoção do sistema.
+- **Notificações Contextuais**: Sistema de alertas e lembretes para ações importantes.
+- **Dashboard Personalizado**: Interface customizável de acordo com função e preferências.
+</context>
+<PRD>
+# Arquitetura Técnica
+
+## Componentes do Sistema
+1. **Frontend**
+   - Framework Next.js com React e TypeScript
+   - Componentes modulares usando Shadcn UI e TailwindCSS
+   - Arquitetura de Client e Server Components para otimização de performance
+   - Sistema de autenticação integrado ao Supabase Auth
+
+2. **Backend**
+   - API RESTful com Next.js API Routes
+   - Server Actions para operações sensíveis
+   - Sistema de cache com React Query para otimização de requisições
+   - Integração com serviços externos via APIs seguras
+
+3. **Banco de Dados**
+   - PostgreSQL gerenciado pelo Supabase
+   - Esquema relacional para entidades principais (funcionários, equipes, cargos)
+   - Políticas de segurança em nível de banco de dados
+   - Sistema de migração e versionamento de banco
+
+4. **Armazenamento**
+   - Supabase Storage para documentos e imagens
+   - Políticas de acesso granular baseadas em perfil
+   - Processamento assíncrono de arquivos grandes
+   - Backup automatizado de dados críticos
+
+5. **Integração e API**
+   - API pública para integração com outros sistemas
+   - Webhooks para eventos relevantes
+   - Suporte a SSO e SCIM para provisionamento de usuários
+   - SDK para extensões personalizadas
+
+## Modelos de Dados
+
+### Entidades Principais
+1. **User**
+   - Credenciais de acesso e perfis de segurança
+   - Relacionamento com Employee ou Admin
+
+2. **Company**
+   - Dados da empresa contratante
+   - Configurações específicas do tenant
+   - Limites e planos de assinatura
+
+3. **Employee**
+   - Dados pessoais e profissionais
+   - Histórico de carreira e remuneração
+   - Documentos e certificações
+   - Relacionamentos hierárquicos
+
+4. **Team**
+   - Estrutura organizacional
+   - Subequipes e departamentos
+   - Relacionamento com funcionários e gestores
+
+5. **Role**
+   - Descrição e requisitos do cargo
+   - Grade salarial e benefícios
+   - Competências e habilidades necessárias
+
+6. **Onboarding**
+   - Fluxos de integração
+   - Tarefas e responsáveis
+   - Prazos e status
+
+7. **TimeOff**
+   - Férias e licenças
+   - Saldos disponíveis
+   - Histórico de solicitações
+
+8. **Performance**
+   - Ciclos de avaliação
+   - Metas e OKRs
+   - Feedbacks e planos de desenvolvimento
+
+9. **Survey**
+   - Pesquisas de clima e satisfação
+   - Respostas e análises
+   - Histórico e tendências
+
+### Relacionamentos
+- Um User pode estar associado a um Employee ou ser um Admin
+- Um Employee pertence a uma Company
+- Um Employee pode pertencer a várias Teams
+- Um Employee pode ter múltiplos Roles ao longo do tempo
+- Um Team pode ter um Employee como gestor
+- Um Performance está ligado a um Employee e opcionalmente a um ciclo de avaliação
+
+## Infraestrutura e Segurança
+- **Multitenancy**: Isolamento de dados por empresa
+- **Autenticação**: JWT com refresh tokens e MFA
+- **Autorização**: RBAC com permissões granulares
+- **Criptografia**: Dados sensíveis criptografados em repouso
+- **Logs e Auditoria**: Registro de todas as ações sensíveis
+- **Monitoramento**: Alertas para comportamentos anômalos
+- **Backup**: Rotinas automáticas com retenção configurável
+- **Compliance**: Conformidade com LGPD/GDPR e outras regulamentações
+
+# Roteiro de Desenvolvimento
+
+## Fase 1: MVP - Gestão de Funcionários e Estrutura
+- **Core de Funcionários**
+  - Cadastro completo de funcionários
+  - Perfil com dados pessoais e profissionais
+  - Upload e gestão de documentos
+  - Histórico de cargos e salários
+
+- **Estrutura Organizacional**
+  - Criação de equipes e subequipes
+  - Definição de hierarquia e gestores
+  - Visualização de organograma
+  - Transferência de funcionários entre equipes
+
+- **Gestão de Cargos**
+  - Cadastro de cargos e descrições
+  - Requisitos e competências
+  - Associação de funcionários a cargos
+  - Histórico de movimentação
+
+- **Autenticação e Permissões**
+  - Login seguro com múltiplos fatores
+  - Definição de perfis de acesso
+  - Permissões granulares por módulo
+  - Auditoria de ações sensíveis
+
+## Fase 2: Expansão - Onboarding e Gestão de Tempo
+- **Onboarding**
+  - Fluxos personalizáveis de integração
+  - Tarefas para novos funcionários
+  - Dashboard de acompanhamento
+  - Notificações automáticas
+
+- **Gestão de Férias e Ausências**
+  - Solicitação e aprovação de férias
+  - Controle de saldo de dias
+  - Registro de ausências e licenças
+  - Calendário de equipe para visualização
+
+- **Documentos Digitais**
+  - Repositório centralizado de documentos
+  - Versões e histórico de alterações
+  - Templates configuráveis
+  - Notificações de vencimentos
+
+- **Dashboards e Relatórios Básicos**
+  - Visão geral de indicadores de RH
+  - Filtros por equipe e período
+  - Exportação em múltiplos formatos
+  - Relatórios programados
+
+## Fase 3: Crescimento - Desempenho e Desenvolvimento
+- **Avaliação de Desempenho**
+  - Ciclos configuráveis de avaliação
+  - Múltiplos modelos de avaliação
+  - Feedbacks cruzados (360°)
+  - Planos de desenvolvimento individual
+
+- **Metas e OKRs**
+  - Definição de objetivos corporativos
+  - Cascateamento para equipes e indivíduos
+  - Acompanhamento de progresso
+  - Integração com avaliações
+
+- **Feedback Contínuo**
+  - Registro de feedbacks ad-hoc
+  - Reconhecimento entre pares
+  - Timeline de feedback
+  - Lembretes automáticos
+
+- **Pesquisas e Pulse**
+  - Criação de pesquisas de clima
+  - Pulsos rápidos de satisfação
+  - Análise de resultados e tendências
+  - Planos de ação baseados em feedback
+
+## Fase 4: Maturidade - Analytics e Integrações
+- **People Analytics**
+  - Análise preditiva de turnover
+  - Métricas avançadas de engajamento
+  - Identificação de talentos e sucessores
+  - Recomendações baseadas em dados
+
+- **Holerites e Benefícios**
+  - Geração de holerites digitais
+  - Gestão de benefícios flexíveis
+  - Portal de acesso para funcionários
+  - Histórico de remuneração
+
+- **Integrações**
+  - API para sistemas de folha de pagamento
+  - Integração com sistemas de contabilidade
+  - SSO e integrações com IdPs
+  - Webhooks para automações externas
+
+- **Compliance e Auditoria**
+  - Módulo de compliance trabalhista
+  - Verificação automática de conformidade
+  - Relatórios para auditorias
+  - Gestão de riscos trabalhistas
+
+# Cadeia de Dependência Lógica
+1. **Estabelecer Base de Usuários e Empresas**
+   - Sistema de autenticação e multitenancy
+   - Cadastro de empresas e configurações básicas
+   - Gerenciamento de usuários e permissões
+
+2. **Implementar Core de Funcionários**
+   - Cadastro completo de dados pessoais
+   - Upload e gestão de documentos
+   - Estrutura base para histórico de carreira
+
+3. **Desenvolver Estrutura Organizacional**
+   - Criação e gerenciamento de equipes
+   - Hierarquia e relacionamentos
+   - Visualização de organograma
+
+4. **Construir Gestão de Cargos**
+   - Definição de cargos e requisitos
+   - Associação de funcionários a cargos
+   - Histórico de movimentações
+
+5. **Implementar Onboarding**
+   - Fluxos de integração
+   - Tarefas e acompanhamento
+   - Notificações e alertas
+
+6. **Desenvolver Gestão de Tempo**
+   - Solicitação e aprovação de férias
+   - Registro de ausências
+   - Calendário de equipe
+
+7. **Construir Módulo de Desempenho**
+   - Avaliações e ciclos
+   - Metas e objetivos
+   - Feedback contínuo
+
+8. **Implementar Analytics e Relatórios**
+   - Dashboards configuráveis
+   - Relatórios e exportações
+   - Insights e tendências
+
+9. **Desenvolver Integrações Externas**
+   - API pública
+   - Webhooks e eventos
+   - Conectores para sistemas comuns
+
+# Riscos e Mitigações
+
+## Riscos Técnicos
+- **Escalabilidade do Banco de Dados**
+  - *Risco*: Degradação de performance com aumento de usuários
+  - *Mitigação*: Implementar sharding por tenant, indexação otimizada e caching estratégico
+
+- **Segurança de Dados Sensíveis**
+  - *Risco*: Exposição de informações pessoais e confidenciais
+  - *Mitigação*: Criptografia em repouso, mascaramento de dados, políticas rigorosas de acesso
+
+- **Complexidade de UI/UX**
+  - *Risco*: Interface complexa e difícil de usar
+  - *Mitigação*: Testes de usabilidade frequentes, design iterativo, onboarding intuitivo
+
+- **Limitações do Stack Tecnológico**
+  - *Risco*: Desafios com Next.js e Server Components para funcionalidades complexas
+  - *Mitigação*: Balancear Client e Server Components, implementar fallbacks, avaliar bibliotecas alternativas
+
+## Riscos de Produto
+- **Resistência à Adoção**
+  - *Risco*: Baixa adesão por parte dos usuários finais
+  - *Mitigação*: Onboarding guiado, UX intuitiva, comunicação clara de benefícios
+
+- **Definição de MVP Inadequada**
+  - *Risco*: MVP insuficiente para resolver problemas reais dos usuários
+  - *Mitigação*: Validação continua com clientes, desenvolvimento incremental, feedback early adopters
+
+- **Complexidade de Configuração**
+  - *Risco*: Sistema muito genérico e difícil de configurar para casos específicos
+  - *Mitigação*: Templates pré-configurados, wizards de setup, presets por indústria
+
+- **Escalabilidade do Negócio**
+  - *Risco*: Dificuldade em atender empresas de diferentes portes e setores
+  - *Mitigação*: Arquitetura modular, customizações por plano, opções de white-label
+
+## Mitigações Gerais
+- Desenvolvimento incremental e contínuo
+- Testes automatizados para regressão
+- Monitoramento proativo de performance
+- Feedback early adopters para validação
+- Documentação completa para desenvolvedores e usuários
+- Definição clara de MVPs incrementais
+
+# Apêndice
+
+## Requisitos Técnicos Detalhados
+- Node.js 18+ para runtime
+- PostgreSQL 15+ para banco de dados
+- React 18+ e Next.js 14+ para frontend
+- Supabase para auth, storage e banco de dados
+- TailwindCSS e Shadcn UI para interface
+- TypeScript para type safety
+- Redis para cache e filas (opcional)
+
+## Integração e Extensibilidade
+- API REST documentada com Swagger
+- Webhooks para eventos principais
+- SDK para extensões customizadas
+- Marketplace para plugins de terceiros (futuro)
+
+## Considerações de Compliance
+- LGPD/GDPR para dados pessoais
+- Conformidade com legislação trabalhista brasileira
+
+## Métricas de Sucesso
+- Tempo médio de onboarding < 5 dias
+- Redução de 80% em processos manuais de RH
+- NPS de usuários > 50
+- Retenção mensal > 95%
+- Crescimento MRR > 10% ao mês
+
+## Referências de Mercado
+- Análise comparativa com Rippling, Deal, Qulture Rocks
+- Melhores práticas de UX de Feedz e outras ferramentas
+- Tendências de People Analytics e RH Digital
+- Benchmarks de adoção e retenção no mercado SaaS B2B
+</PRD>
